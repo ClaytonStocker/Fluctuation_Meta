@@ -1,19 +1,23 @@
 rm(list = ls())
+# Install metaAidR
+devtools::install_github("daniel1noble/metaAidR")
+
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(tidyverse, readxl, gtsummary, dplyr, 
                tidyr, ggplot2, rotl, DescTools, stringr, ape, 
                emmeans, patchwork, latex2exp, metafor, brms, 
                flextable, phytools, MCMCglmm, metaAidR, orchaRd, 
-               robumeta, ggpmisc, ggridges, ggbeeswarm, gridExtra)
+               robumeta, ggpmisc, ggridges, ggbeeswarm, gridExtra, metaAidR)
+
 
 # Importing Data Set
-data <- read.csv("./3.Data_Analysis/2.Outputs/Data/Final_Data.csv")
+data <- read.csv("./Final_Data.csv")
 data$obs <- 1:nrow(data)
 data$Scientific_Name <- sub(" ", "_", data$Scientific_Name)
 data$phylo <- data$Scientific_Name
 
 # Phylogenetic covariance matrix
-tree <- ape::read.tree("./3.Data_Analysis/2.Outputs/Phylogeny/tree")
+tree <- ape::read.tree("tree")
 phy <- ape::compute.brlen(tree, method = "Grafen", power = 1)
 A <- ape::vcv.phylo(phy)
 row.names(A) <- colnames(A) <- row.names(A)
