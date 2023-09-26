@@ -23,11 +23,14 @@ A <- ape::vcv.phylo(phy)
 row.names(A) <- colnames(A) <- row.names(A)
 A_cor <- ape::vcv.phylo(phy, corr = TRUE)
 
+## Make the V matrix
+  V <- make_VCV_matrix(data, m = "R1.1_Mean", sd = "R1.1_SD_Final", n = "n_R1.1", V = "v_InRR", cluster = "Shared_Control_Number")
+
 ##### Overall Model #####
 run <- FALSE
 system.time( #  34ish minutes
   if(run){
-    Overall_Model <- metafor::rma.mv(InRR_Transformed ~ 1, V = v_InRR, test = "t", dfs = "contain",
+    Overall_Model <- metafor::rma.mv(InRR_Transformed ~ 1, V = V, test = "t", dfs = "contain",
                                      random = list(~1|phylo, ~1|Study_ID, ~1|obs,
                                                    ~1|Shared_Animal_Number, ~1|Shared_Control_Number), 
                                      R = list(phylo=A_cor), data = data, method = "REML", sparse = TRUE, 
@@ -35,6 +38,9 @@ system.time( #  34ish minutes
     saveRDS(Overall_Model, "./3.Data_Analysis/2.Outputs/Models/Overall_Model.rds")
   } else {
             Overall_Model <- readRDS("./3.Data_Analysis/2.Outputs/Models/Overall_Model.rds")})
+
+## Check robust variance estimtors
+  Overall_Model_rob <- robust(Amplitude_Model, cluster = data$Study_ID, clubSandwich = TRUE, adjust = TRUE)
 
 Overall_Model_Estimates <- data.frame(estimate = Overall_Model$b, ci.lb = Overall_Model$ci.lb, 
                                       ci.ub = Overall_Model$ci.ub)
@@ -53,6 +59,7 @@ system.time( #  14ish minutes
     saveRDS(Amplitude_Model, "./3.Data_Analysis/2.Outputs/Models/Amplitude_Model.rds")
   } else {
     Amplitude_Model <- readRDS("./3.Data_Analysis/2.Outputs/Models/Amplitude_Model.rds")})
+
 
 Amplitude_Model_Estimates <- data.frame(estimate = Amplitude_Model$b, ci.lb = Amplitude_Model$ci.lb, 
                                         ci.ub = Amplitude_Model$ci.ub)
