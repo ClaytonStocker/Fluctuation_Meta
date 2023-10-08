@@ -1,5 +1,8 @@
 rm(list = ls())
 if (!require("pacman")) install.packages("pacman")
+if (!require("devtools")) install.packages("devtools")
+if (!require("metaAidR")) devtools::install_gitgub("daniel1noble/metaAidR", force = TRUE)
+if (!require("orchaRd")) devtools::install_gitgub("daniel1noble/orchaRd", force = TRUE)
 pacman::p_load(tidyverse, readxl, gtsummary, dplyr, 
                tidyr, ggplot2, rotl, DescTools, stringr, ape, 
                emmeans, patchwork, latex2exp, metafor, brms, 
@@ -7,13 +10,13 @@ pacman::p_load(tidyverse, readxl, gtsummary, dplyr,
                robumeta, ggpmisc, ggridges, ggbeeswarm, gridExtra, phylobase)
 
 # Importing Data Set
-data <- read.csv("./3.Data_Analysis/2.Outputs/Data/Final_Data.csv")
+data <- read.csv("./Final_Data.csv")
 data$obs <- 1:nrow(data)
 data$Scientific_Name <- sub(" ", "_", data$Scientific_Name)
 data$phylo <- data$Scientific_Name
 
 # Phylogenetic covariance matrix
-tree <- ape::read.tree("./3.Data_Analysis/2.Outputs/Phylogeny/tree")
+tree <- ape::read.tree("./tree")
 phy <- ape::compute.brlen(tree, method = "Grafen", power = 1)
 A <- ape::vcv.phylo(phy)
 row.names(A) <- colnames(A) <- row.names(A)
@@ -24,17 +27,17 @@ A_cor <- ape::vcv.phylo(phy, corr = TRUE)
 VCV_InCVR <- make_VCV_matrix(data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
 ##### Overall Model - CVR #####
-run <- FALSE
-system.time( #  34ish minutes
+run <- TRUE
+system.time(
   if(run){
     Overall_Model_CVR <- metafor::rma.mv(InCVR ~ 1, V = VCV_InCVR, test = "t", dfs = "contain",
                                          random = list(~1|phylo, ~1|Study_ID, ~1|obs, ~1|Scientific_Name, 
                                                        ~1|Shared_Animal_Number, ~1|Measurement), 
                                          R = list(phylo=A_cor), data = data, method = "REML", sparse = TRUE, 
                                          control=list(rel.tol=1e-9))
-    saveRDS(Overall_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Overall_Model_CVR.rds")
+    saveRDS(Overall_Model_CVR, "./Overall_Model_CVR.rds")
   } else {
-            Overall_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Overall_Model_CVR.rds")})
+            Overall_Model_CVR <- readRDS("./Overall_Model_CVR.rds")})
 
 Overall_Model_CVR_rob <- robust(Overall_Model_CVR, cluster = data$Study_ID, adjust = TRUE)
 
@@ -43,8 +46,8 @@ Overall_Model_CVR_Estimates <- data.frame(estimate = Overall_Model_CVR$b, ci.lb 
 Overall_Model_CVR_i2 <- data.frame(round(orchaRd::i2_ml(Overall_Model_CVR), 2))
 
 #### Overall Model - Fluctuation Amplitude Meta-Regression - CVR ####
-run <- FALSE
-system.time( #  14ish minutes
+run <- TRUE
+system.time(
   if(run){
     Amplitude_Model_CVR <- metafor::rma.mv(InCVR, V = VCV_InCVR, test = "t", dfs = "contain",
                                            mods = ~ T2_Magnitude - 1,
@@ -52,9 +55,9 @@ system.time( #  14ish minutes
                                                          ~1|Shared_Animal_Number, ~1|Measurement), 
                                            R = list(phylo=A_cor), data = data, method = "REML", sparse = TRUE, 
                                            control=list(rel.tol=1e-9))
-    saveRDS(Amplitude_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Amplitude_Model_CVR.rds")
+    saveRDS(Amplitude_Model_CVR, "./Amplitude_Model_CVR.rds")
   } else {
-            Amplitude_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Amplitude_Model_CVR.rds")})
+            Amplitude_Model_CVR <- readRDS("./Amplitude_Model_CVR.rds")})
 
 Amplitude_Model_CVR_rob <- robust(Amplitude_Model_CVR, cluster = data$Study_ID, adjust = TRUE)
 
@@ -86,7 +89,7 @@ Amplitude_Plot_CVR <- ggplot(Plot_Data, aes(x = T2_Magnitude, y = InCVR)) +
                       coord_cartesian(xlim = c(0, 30), 
                                       ylim = c(-2.5, 2.5))
 
-Amplitude_Plot_CVR #(400x400)
+Amplitude_Plot_CVR
 
 #### Overall Model - Type of Fluctuation Meta-Regression - CVR ####
 Fluctuation_Data <- data %>% filter(!is.na(Fluctuation_Category))
@@ -112,8 +115,8 @@ Fluctuation_A_cor <- as.matrix(Fluctuation_A_cor)
 
 Fluctuation_VCV_InCVR <- make_VCV_matrix(Fluctuation_Data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
-run <- FALSE
-system.time( #  29ish minutes
+run <- TRUE
+system.time(
   if(run){
     Fluctuation_Model_CVR <- metafor::rma.mv(InCVR, V = Fluctuation_VCV_InCVR, test = "t", dfs = "contain",
                                              mods = ~ Fluctuation_Category - 1,
@@ -121,9 +124,9 @@ system.time( #  29ish minutes
                                                            ~1|Shared_Animal_Number, ~1|Measurement), 
                                              R = list(phylo=Fluctuation_A_cor), data = Fluctuation_Data, method = "REML", sparse = TRUE, 
                                              control=list(rel.tol=1e-9))
-    saveRDS(Fluctuation_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Fluctuation_Model_CVR.rds")
+    saveRDS(Fluctuation_Model_CVR, "./Fluctuation_Model_CVR.rds")
   } else {
-            Fluctuation_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Fluctuation_Model_CVR.rds")})
+            Fluctuation_Model_CVR <- readRDS("./Fluctuation_Model_CVR.rds")})
 
 Fluctuation_Model_CVR_rob <- robust(Fluctuation_Model_CVR, cluster = Fluctuation_Data$Study_ID, adjust = TRUE)
 
@@ -226,7 +229,7 @@ density_fluctuation_CVR <- fluctuation_table %>% mutate(name = fct_relevel(name,
                                                   paste(format(round(mean(exp(Fluctuation_Model_CVR_Estimates["Sinusoidal (Sine Curve)", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                       x = -0.75, y = (seq(1, dim(fluctuation_table)[1], 1)+0.4)), size = 3.5)
 
-density_fluctuation_CVR #(400x400)
+density_fluctuation_CVR
 
 # Preparing Graph - Part 1
 
@@ -301,7 +304,7 @@ density_fluctuation_CVR_1 <- fluctuation_table_1 %>% mutate(name = fct_relevel(n
                                                     paste(format(round(mean(exp(Fluctuation_Model_CVR_Estimates["Sinusoidal (Sine Curve)", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                         x = -0.75, y = (seq(1, dim(fluctuation_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_fluctuation_CVR_1 #(400x240)
+density_fluctuation_CVR_1
 
 # Preparing Graph - Part 2
 
@@ -376,7 +379,7 @@ density_fluctuation_CVR_2 <- fluctuation_table_2 %>% mutate(name = fct_relevel(n
                                                     paste(format(round(mean(exp(Fluctuation_Model_CVR_Estimates["Stepwise", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                         x = -0.75, y = (seq(1, dim(fluctuation_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_fluctuation_CVR_2 #(400x240)
+density_fluctuation_CVR_2
 
 ##### Overall Model - Trait Meta-Regression - CVR #####
 Trait_Exploration <- data %>% select("Trait_Category") %>% table() %>% data.frame()
@@ -390,8 +393,8 @@ Trait_Study_Count <- data %>% select("Study_ID", "Trait_Category") %>% table() %
                      filter(`Freq` != 0) %>% select("Trait_Category") %>% table() %>% data.frame()
 rownames(Trait_Study_Count) <- Trait_Study_Count$Trait_Category
 
-run <- FALSE
-system.time( #  43ish minutes
+run <- TRUE
+system.time(
   if(run){
     Trait_Model_CVR <- metafor::rma.mv(InCVR, V = VCV_InCVR, test = "t", dfs = "contain",
                                        mods = ~ Trait_Category - 1,
@@ -399,9 +402,9 @@ system.time( #  43ish minutes
                                                      ~1|Shared_Animal_Number, ~1|Measurement), 
                                        R = list(phylo=A_cor), data = data, method = "REML", sparse = TRUE, 
                                        control=list(rel.tol=1e-9))
-    saveRDS(Trait_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Trait_Model_CVR.rds")
+    saveRDS(Trait_Model_CVR, "./Trait_Model_CVR.rds")
   } else {
-            Trait_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Trait_Model_CVR.rds")})
+            Trait_Model_CVR <- readRDS("./Trait_Model_CVR.rds")})
 
 Trait_Model_CVR_rob <- robust(Trait_Model_CVR, cluster = data$Study_ID, adjust = TRUE)
 
@@ -529,7 +532,7 @@ density_trait_CVR <- trait_table %>% mutate(name = fct_relevel(name, Trait_Order
                                             paste(format(round(mean(exp(Trait_Model_CVR_Estimates["Behavioural", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                 x = -0.75, y = (seq(1, dim(trait_table)[1], 1)+0.4)), size = 3.5)
 
-density_trait_CVR #(400x640)
+density_trait_CVR
 
 # Preparing Graph - Part 1
 
@@ -622,7 +625,7 @@ density_trait_CVR_1 <- trait_table_1 %>% mutate(name = fct_relevel(name, Trait_O
                                                 paste(format(round(mean(exp(Trait_Model_CVR_Estimates["Behavioural", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                         x = -0.75, y = (seq(1, dim(trait_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_trait_CVR_1 #(400x400)
+density_trait_CVR_1
 
 # Preparing Graph - Part 2
 
@@ -706,7 +709,7 @@ density_trait_CVR_2 <- trait_table_2 %>% mutate(name = fct_relevel(name, Trait_O
                                               paste(format(round(mean(exp(Trait_Model_CVR_Estimates["Morphology", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                   x = -0.75, y = (seq(1, dim(trait_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_trait_CVR_2 #(400x320)
+density_trait_CVR_2
 
 ##### Overall Model - Class Meta-Regression - CVR #####
 Class_Exploration <- data %>% select("Class") %>% table() %>% data.frame()
@@ -731,8 +734,8 @@ Class_A_cor <- as.matrix(Class_A_cor)
 
 Class_VCV_InCVR <- make_VCV_matrix(Class_Data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
-run <- FALSE
-system.time( #  23ish minutes
+run <- TRUE
+system.time(
   if(run){
     Class_Model_CVR <- metafor::rma.mv(InCVR, V = Class_VCV_InCVR, test = "t", dfs = "contain",
                                        mods = ~ Class - 1,
@@ -740,9 +743,9 @@ system.time( #  23ish minutes
                                                      ~1|Shared_Animal_Number, ~1|Measurement), 
                                        R = list(phylo=Class_A_cor), data = Class_Data, method = "REML", sparse = TRUE, 
                                        control=list(rel.tol=1e-9))
-    saveRDS(Class_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Class_Model_CVR.rds")
+    saveRDS(Class_Model_CVR, "./Class_Model_CVR.rds")
   } else {
-            Class_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Class_Model_CVR.rds")})
+            Class_Model_CVR <- readRDS("./Class_Model_CVR.rds")})
 
 Class_Model_CVR_rob <- robust(Class_Model_CVR, cluster = Class_Data$Study_ID, adjust = TRUE)
 
@@ -901,7 +904,7 @@ density_class_CVR <- class_table %>% mutate(name = fct_relevel(name, Class_Order
                                             paste(format(round(mean(exp(Class_Model_CVR_Estimates["Actinopteri", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                 x = -0.75, y = (seq(1, dim(class_table)[1], 1)+0.4)), size = 3.5)
 
-density_class_CVR #(400x880)
+density_class_CVR
 
 # Preparing Graph - Part 1
 
@@ -1003,7 +1006,7 @@ density_class_CVR_1 <- class_table_1 %>% mutate(name = fct_relevel(name, Class_O
                                               paste(format(round(mean(exp(Class_Model_CVR_Estimates["Actinopteri", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                   x = -0.75, y = (seq(1, dim(class_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_class_CVR_1 #(400x480)
+density_class_CVR_1
 
 # Preparing Graph - Part 2
 
@@ -1105,7 +1108,7 @@ density_class_CVR_2 <- class_table_2 %>% mutate(name = fct_relevel(name, Class_O
                                               paste(format(round(mean(exp(Class_Model_CVR_Estimates["Branchiopoda", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                   x = -0.75, y = (seq(1, dim(class_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_class_CVR_2 #(400x480)
+density_class_CVR_2
 
 ##### Overall Model - Specific Trait Meta-Regression - CVR #####
 Specific_Trait_Exploration <- data %>% select("Measurement") %>% table() %>% data.frame()
@@ -1151,8 +1154,8 @@ Specific_Trait_A_cor <- as.matrix(Specific_Trait_A_cor)
 
 Specific_Trait_VCV_InCVR <- make_VCV_matrix(Specific_Trait_Data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
-run <- FALSE
-system.time( #  17ish minutes
+run <- TRUE
+system.time(
   if(run){
     Specific_Trait_Model_CVR <- metafor::rma.mv(InCVR, V = Specific_Trait_VCV_InCVR, test = "t", dfs = "contain",
                                                 mods = ~ Measurement - 1,
@@ -1160,9 +1163,9 @@ system.time( #  17ish minutes
                                                               ~1|Shared_Animal_Number), 
                                                 R = list(phylo=Specific_Trait_A_cor), data = Specific_Trait_Data, method = "REML", sparse = TRUE, 
                                                 control=list(rel.tol=1e-9))
-    saveRDS(Specific_Trait_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Specific_Trait_Model_CVR.rds")
+    saveRDS(Specific_Trait_Model_CVR, "./Specific_Trait_Model_CVR.rds")
   } else {
-            Specific_Trait_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Specific_Trait_Model_CVR.rds")})
+            Specific_Trait_Model_CVR <- readRDS("./Specific_Trait_Model_CVR.rds")})
 
 Specific_Trait_Model_CVR_rob <- robust(Specific_Trait_Model_CVR, cluster = Specific_Trait_Data$Study_ID, adjust = TRUE)
 
@@ -1337,7 +1340,7 @@ density_specific_trait_CVR <- specific_trait_table %>% mutate(name = fct_relevel
                                                      paste(format(round(mean(exp(Specific_Trait_Model_CVR_Estimates["Apparent Digestability Coefficient", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                          x = -0.75, y = (seq(1, dim(specific_trait_table)[1], 1)+0.4)), size = 3.5)
 
-density_specific_trait_CVR #(400x960)
+density_specific_trait_CVR
 
 # Preparing Graph - Part 2
 
@@ -1500,36 +1503,7 @@ density_specific_trait_CVR_2 <- specific_trait_table_2 %>% mutate(name = fct_rel
                                                        paste(format(round(mean(exp(Specific_Trait_Model_CVR_Estimates["Longevity", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                           x = -0.75, y = (seq(1, dim(specific_trait_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_specific_trait_CVR_2 #(400x960)
-
-##### Summary of Overall Plots #####
-
-Overall_Layout <- rbind(c(1, 2), 
-                        c(1, 2),
-                        c(1, 2),
-                        c(1, 2),
-                        c(1, 2),
-                        c(1, 2),
-                        c(1, 2),
-                        c(1, 2),
-                        c(1, 2),
-                        c(1, 2),
-                        c(1, 3),
-                        c(1, 3),
-                        c(1, 3),
-                        c(1, 3),
-                        c(1, 3),
-                        c(1, 3),
-                        c(1, 3), 
-                        c(1, 4), 
-                        c(1, 4),
-                        c(1, 4),
-                        c(1, 4))
-
-Overall_Combined_CVR <- grid.arrange(density_specific_trait_CVR, density_class_CVR, density_trait_CVR, density_fluctuation_CVR, 
-                                     layout_matrix = Overall_Layout)
-
-Overall_Combined_CVR #(850 x 1500 - does not include amplitude plot)
+density_specific_trait_CVR_2
 
 ##### Population-Level Subset Model - CVR #####
 Population_Subset_Data <- data %>% filter(Trait_Category == "Population")
@@ -1541,17 +1515,17 @@ Population_A_cor <- as.matrix(Population_A_cor)
 
 Population_VCV_InCVR <- make_VCV_matrix(Population_Subset_Data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
-run <- FALSE
-system.time( #  1ish minutes
+run <- TRUE
+system.time(
   if(run){
     Population_Model_CVR <- metafor::rma.mv(InCVR ~ 1, V = Population_VCV_InCVR, test = "t", dfs = "contain",
                                             random = list(~1|phylo, ~1|Study_ID, ~1|obs, ~1|Scientific_Name, 
                                                           ~1|Shared_Animal_Number, ~1|Measurement), 
                                             R = list(phylo=Population_A_cor), data = Population_Subset_Data, method = "REML", sparse = TRUE, 
                                             control=list(rel.tol=1e-9))
-    saveRDS(Population_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Population_Model_CVR.rds")
+    saveRDS(Population_Model_CVR, "./Population_Model_CVR.rds")
   } else {
-            Population_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Population_Model_CVR.rds")})
+            Population_Model_CVR <- readRDS("./Population_Model_CVR.rds")})
 
 Population_Model_CVR_rob <- robust(Population_Model_CVR, cluster = Population_Subset_Data$Study_ID, adjust = TRUE)
 
@@ -1561,8 +1535,8 @@ Population_Model_CVR_Estimates <- data.frame(estimate = Population_Model_CVR$b,
 Population_Model_CVR_i2 <- data.frame(round(orchaRd::i2_ml(Population_Model_CVR), 2))
 
 #### Population-Level Subset Model - Fluctuation Amplitude Meta-Regression - CVR ####
-run <- FALSE
-system.time( #  1ish minutes
+run <- TRUE
+system.time(
   if(run){
     Population_Amplitude_Model_CVR <- metafor::rma.mv(InCVR, V = Population_VCV_InCVR, test = "t", dfs = "contain",
                                                       mods = ~ T2_Magnitude - 1,
@@ -1570,9 +1544,9 @@ system.time( #  1ish minutes
                                                                     ~1|Shared_Animal_Number, ~1|Measurement), 
                                                       R = list(phylo=Population_A_cor), data = Population_Subset_Data, method = "REML", sparse = TRUE, 
                                                       control=list(rel.tol=1e-9))
-    saveRDS(Population_Amplitude_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Population_Amplitude_Model_CVR.rds")
+    saveRDS(Population_Amplitude_Model_CVR, "./Population_Amplitude_Model_CVR.rds")
   } else {
-            Population_Amplitude_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Population_Amplitude_Model_CVR.rds")})
+            Population_Amplitude_Model_CVR <- readRDS("./Population_Amplitude_Model_CVR.rds")})
 
 Population_Amplitude_Model_CVR_rob <- robust(Population_Amplitude_Model_CVR, cluster = Population_Subset_Data$Study_ID, adjust = TRUE)
 
@@ -1609,7 +1583,7 @@ Population_Amplitude_Plot <- ggplot(Population_Plot_Data, aes(x = T2_Magnitude, 
                              coord_cartesian(xlim = c(0, 30), 
                                              ylim = c(-2.5, 2.5))
 
-Population_Amplitude_Plot #(400x400)
+Population_Amplitude_Plot
 
 #### Population-Level Subset Model - Type of Fluctuation Meta-Regression - CVR ####
 Population_Fluctuation_Data <- Population_Subset_Data %>% filter(!is.na(Fluctuation_Category))
@@ -1636,8 +1610,8 @@ Population_Fluctuation_A_cor <- as.matrix(Population_Fluctuation_A_cor)
 
 Population_Fluctuation_VCV_InCVR <- make_VCV_matrix(Population_Fluctuation_Data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
-run <- FALSE
-system.time( #  1ish minutes
+run <- TRUE
+system.time(
   if(run){
     Population_Fluctuation_Model_CVR <- metafor::rma.mv(InCVR, V = Population_Fluctuation_VCV_InCVR, test = "t", dfs = "contain",
                                                         mods = ~ Fluctuation_Category - 1,
@@ -1645,9 +1619,9 @@ system.time( #  1ish minutes
                                                                       ~1|Shared_Animal_Number, ~1|Measurement), 
                                                         R = list(phylo=Population_Fluctuation_A_cor), data = Population_Fluctuation_Data, method = "REML", sparse = TRUE, 
                                                         control=list(rel.tol=1e-9))
-    saveRDS(Population_Fluctuation_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Population_Fluctuation_Model_CVR.rds")
+    saveRDS(Population_Fluctuation_Model_CVR, "./Population_Fluctuation_Model_CVR.rds")
   } else {
-            Population_Fluctuation_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Population_Fluctuation_Model_CVR.rds")})
+            Population_Fluctuation_Model_CVR <- readRDS("./Population_Fluctuation_Model_CVR.rds")})
 
 Population_Fluctuation_Model_CVR_rob <- robust(Population_Fluctuation_Model_CVR, cluster = Population_Fluctuation_Data$Study_ID, adjust = TRUE)
 
@@ -1740,7 +1714,7 @@ density_population_fluctuation_CVR <- population_fluctuation_table %>% mutate(na
                                                              paste(format(round(mean(exp(Population_Fluctuation_Model_CVR_Estimates["Sinusoidal (Sine Curve)", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                  x = -0.75, y = (seq(1, dim(population_fluctuation_table)[1], 1)+0.4)), size = 3.5)
 
-density_population_fluctuation_CVR #(400x320)
+density_population_fluctuation_CVR
 
 # Preparing Graph - Part 1
 
@@ -1815,7 +1789,7 @@ density_population_fluctuation_CVR_1 <- population_fluctuation_table_1 %>% mutat
                                                                paste(format(round(mean(exp(Population_Fluctuation_Model_CVR_Estimates["Sinusoidal (Sine Curve)", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                    x = -0.75, y = (seq(1, dim(population_fluctuation_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_population_fluctuation_CVR_1 #(400x240)
+density_population_fluctuation_CVR_1
 
 # Preparing Graph - Part 2
 
@@ -1885,7 +1859,7 @@ density_population_fluctuation_CVR_2 <- population_fluctuation_table_2 %>% mutat
                                         geom_label(aes(label=c(paste(format(round(mean(exp(Population_Fluctuation_Model_CVR_Estimates["Stepwise", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                   x = -0.75, y = (seq(1, dim(population_fluctuation_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_population_fluctuation_CVR_2 #(400x160)
+density_population_fluctuation_CVR_2
 
 ##### Population-Level Subset Model - Class Meta-Regression - CVR #####
 Population_Class_Exploration <- Population_Subset_Data %>% select("Class") %>% table() %>% data.frame()
@@ -1911,8 +1885,8 @@ Population_Class_A_cor <- as.matrix(Population_Class_A_cor)
 
 Population_Class_VCV_InCVR <- make_VCV_matrix(Population_Class_Data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
-run <- FALSE
-system.time( #  1ish minutes
+run <- TRUE
+system.time(
   if(run){
     Population_Class_Model_CVR <- metafor::rma.mv(InCVR, V = Population_Class_VCV_InCVR, test = "t", dfs = "contain",
                                                   mods = ~ Class - 1,
@@ -1920,9 +1894,9 @@ system.time( #  1ish minutes
                                                                 ~1|Shared_Animal_Number, ~1|Measurement), 
                                                   R = list(phylo=Population_Class_A_cor), data = Population_Class_Data, method = "REML", sparse = TRUE, 
                                                   control=list(rel.tol=1e-9))
-    saveRDS(Population_Class_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Population_Class_Model_CVR.rds")
+    saveRDS(Population_Class_Model_CVR, "./Population_Class_Model_CVR.rds")
   } else {
-            Population_Class_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Population_Class_Model_CVR.rds")})
+            Population_Class_Model_CVR <- readRDS("./Population_Class_Model_CVR.rds")})
 
 Population_Class_Model_CVR_rob <- robust(Population_Class_Model_CVR, cluster = Population_Class_Data$Study_ID, adjust = TRUE)
 
@@ -2015,7 +1989,7 @@ density_population_class_CVR <- population_class_table %>% mutate(name = fct_rel
                                                        paste(format(round(mean(exp(Population_Class_Model_CVR_Estimates["Actinopteri", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                            x = -0.75, y = (seq(1, dim(population_class_table)[1], 1)+0.4)), size = 3.5)
 
-density_population_class_CVR #(400x320)
+density_population_class_CVR
 
 # Preparing Graph - Part 1
 
@@ -2094,7 +2068,7 @@ density_population_class_CVR_1 <- population_class_table_1 %>% mutate(name = fct
                                                          paste(format(round(mean(exp(Population_Class_Model_CVR_Estimates["Actinopteri", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                              x = -0.75, y = (seq(1, dim(population_class_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_population_class_CVR_1 #(400x240)
+density_population_class_CVR_1
 
 # Preparing Graph - Part 2
 
@@ -2162,16 +2136,7 @@ density_population_class_CVR_2 <- population_class_table_2 %>% mutate(name = fct
                                   geom_label(aes(label=c(paste(format(round(mean(exp(Population_Class_Model_CVR_Estimates["Insecta", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                              x = -0.75, y = (seq(1, dim(population_class_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_population_class_CVR_2 #(400x160)
-
-# Combining Population Plots
-
-Population_Layout <- rbind(c(1, 2))
-
-Population_Combined_CVR <- grid.arrange(density_population_class_CVR, density_population_fluctuation_CVR, 
-                                        layout_matrix = Population_Layout)
-
-Population_Combined_CVR #(850 x 300 - does not include amplitude plot)
+density_population_class_CVR_2
 
 ##### Individual-Level Trait Subset Model - CVR #####
 Individual_Subset_Data <- data %>% filter(Trait_Category != "Population")
@@ -2183,17 +2148,17 @@ Individual_A_cor <- as.matrix(Individual_A_cor)
 
 Individual_VCV_InCVR <- make_VCV_matrix(Individual_Subset_Data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
-run <- FALSE
-system.time( #  31ish minutes
+run <- TRUE
+system.time(
   if(run){
     Individual_Model_CVR <- metafor::rma.mv(InCVR ~ 1, V = Individual_VCV_InCVR, test = "t", dfs = "contain",
                                             random = list(~1|phylo, ~1|Study_ID, ~1|obs, ~1|Scientific_Name, 
                                                           ~1|Shared_Animal_Number, ~1|Measurement), 
                                             R = list(phylo=Individual_A_cor), data = Individual_Subset_Data, method = "REML", sparse = TRUE,
                                             control=list(rel.tol=1e-9))
-    saveRDS(Individual_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Individual_Model_CVR.rds")
+    saveRDS(Individual_Model_CVR, "./Individual_Model_CVR.rds")
   } else {
-            Individual_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Individual_Model_CVR.rds")})
+            Individual_Model_CVR <- readRDS("./Individual_Model_CVR.rds")})
 
 Individual_Model_CVR_rob <- robust(Individual_Model_CVR, cluster = Individual_Subset_Data$Study_ID, adjust = TRUE)
 
@@ -2203,8 +2168,8 @@ Individual_Model_CVR_Estimates <- data.frame(estimate = Individual_Model_CVR$b,
 Individual_Model_CVR_i2 <- data.frame(round(orchaRd::i2_ml(Individual_Model_CVR), 2))
 
 #### Individual-Level Subset Model - Fluctuation Amplitude Meta-Regression - CVR ####
-run <- FALSE
-system.time( #  19ish minutes
+run <- TRUE
+system.time(
   if(run){
     Individual_Amplitude_Model_CVR <- metafor::rma.mv(InCVR, V = Individual_VCV_InCVR, test = "t", dfs = "contain",
                                                       mods = ~ T2_Magnitude - 1,
@@ -2212,9 +2177,9 @@ system.time( #  19ish minutes
                                                                     ~1|Shared_Animal_Number, ~1|Measurement), 
                                                       R = list(phylo=Individual_A_cor), data = Individual_Subset_Data, method = "REML", sparse = TRUE, 
                                                       control=list(rel.tol=1e-9))
-    saveRDS(Individual_Amplitude_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Individual_Amplitude_Model_CVR.rds")
+    saveRDS(Individual_Amplitude_Model_CVR, "./Individual_Amplitude_Model_CVR.rds")
   } else {
-            Individual_Amplitude_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Individual_Amplitude_Model_CVR.rds")})
+            Individual_Amplitude_Model_CVR <- readRDS("./Individual_Amplitude_Model_CVR.rds")})
 
 Individual_Amplitude_Model_CVR_rob <- robust(Individual_Amplitude_Model_CVR, cluster = Individual_Subset_Data$Study_ID, adjust = TRUE)
 
@@ -2251,7 +2216,7 @@ Individual_Amplitude_Plot_CVR <- ggplot(Individual_Plot_Data, aes(x = T2_Magnitu
                                  coord_cartesian(xlim = c(0, 30), 
                                                  ylim = c(-2.5, 2.5))
 
-Individual_Amplitude_Plot_CVR #(400x400)
+Individual_Amplitude_Plot_CVR
 
 #### Individual-Level Subset Model - Type of Fluctuation Meta-Regression - CVR ####
 Individual_Fluctuation_Data <- Individual_Subset_Data %>% filter(!is.na(Fluctuation_Category))
@@ -2275,8 +2240,8 @@ Individual_Fluctuation_A_cor <- as.matrix(Individual_Fluctuation_A_cor)
 
 Individual_Fluctuation_VCV_InCVR <- make_VCV_matrix(Individual_Fluctuation_Data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
-run <- FALSE
-system.time( #  20ish minutes
+run <- TRUE
+system.time(
   if(run){
     Individual_Fluctuation_Model_CVR <- metafor::rma.mv(InCVR, V = Individual_Fluctuation_VCV_InCVR, test = "t", dfs = "contain",
                                                         mods = ~ Fluctuation_Category - 1,
@@ -2284,9 +2249,9 @@ system.time( #  20ish minutes
                                                                       ~1|Shared_Animal_Number, ~1|Measurement), 
                                                         R = list(phylo=Individual_Fluctuation_A_cor), data = Individual_Fluctuation_Data, method = "REML", sparse = TRUE, 
                                                         control=list(rel.tol=1e-9))
-    saveRDS(Individual_Fluctuation_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Individual_Fluctuation_Model_CVR.rds")
+    saveRDS(Individual_Fluctuation_Model_CVR, "./Individual_Fluctuation_Model_CVR.rds")
   } else {
-            Individual_Fluctuation_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Individual_Fluctuation_Model_CVR.rds")})
+            Individual_Fluctuation_Model_CVR <- readRDS("./Individual_Fluctuation_Model_CVR.rds")})
 
 Individual_Fluctuation_Model_CVR_rob <- robust(Individual_Fluctuation_Model_CVR, cluster = Individual_Fluctuation_Data$Study_ID, adjust = TRUE)
 
@@ -2390,7 +2355,7 @@ density_individual_fluctuation_CVR <- individual_fluctuation_table %>% mutate(na
                                                              paste(format(round(mean(exp(Individual_Fluctuation_Model_CVR_Estimates["Sinusoidal (Sine Curve)", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                  x = -0.75, y = (seq(1, dim(individual_fluctuation_table)[1], 1)+0.4)), size = 3.5)
 
-density_individual_fluctuation_CVR #(400x400)
+density_individual_fluctuation_CVR
 
 # Preparing Graph - Part 1
 
@@ -2465,7 +2430,7 @@ density_individual_fluctuation_CVR_1 <- individual_fluctuation_table_1 %>% mutat
                                                                paste(format(round(mean(exp(Individual_Fluctuation_Model_CVR_Estimates["Sinusoidal (Sine Curve)", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                    x = -0.75, y = (seq(1, dim(individual_fluctuation_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_individual_fluctuation_CVR_1 #(400x240)
+density_individual_fluctuation_CVR_1
 
 # Preparing Graph - Part 2
 
@@ -2540,7 +2505,7 @@ density_individual_fluctuation_CVR_2 <- individual_fluctuation_table_2 %>% mutat
                                                                paste(format(round(mean(exp(Individual_Fluctuation_Model_CVR_Estimates["Stepwise", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                    x = -0.75, y = (seq(1, dim(individual_fluctuation_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_individual_fluctuation_CVR_2 #(400x240)
+density_individual_fluctuation_CVR_2
 
 ##### Individual-Level Subset Model - Class Meta-Regression - CVR #####
 Individual_Class_Exploration <- Individual_Subset_Data %>% select("Class") %>% table() %>% data.frame()
@@ -2572,8 +2537,8 @@ Individual_Class_A_cor <- as.matrix(Individual_Class_A_cor)
 
 Individual_Class_VCV_InCVR <- make_VCV_matrix(Individual_Class_Data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
-run <- FALSE
-system.time( #  12ish minutes
+run <- TRUE
+system.time(
   if(run){
     Individual_Class_Model_CVR <- metafor::rma.mv(InCVR, V = Individual_Class_VCV_InCVR, test = "t", dfs = "contain",
                                                   mods = ~ Class - 1,
@@ -2581,9 +2546,9 @@ system.time( #  12ish minutes
                                                                 ~1|Shared_Animal_Number, ~1|Measurement), 
                                                   R = list(phylo=Individual_Class_A_cor), data = Individual_Class_Data, method = "REML", sparse = TRUE, 
                                                   control=list(rel.tol=1e-9))
-    saveRDS(Individual_Class_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Individual_Class_Model_CVR.rds")
+    saveRDS(Individual_Class_Model_CVR, "./Individual_Class_Model_CVR.rds")
   } else {
-            Individual_Class_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Individual_Class_Model_CVR.rds")})
+            Individual_Class_Model_CVR <- readRDS("./Individual_Class_Model_CVR.rds")})
 
 Individual_Class_Model_CVR_rob <- robust(Individual_Class_Model_CVR, cluster = Individual_Class_Data$Study_ID, adjust = TRUE)
 
@@ -2734,7 +2699,7 @@ density_individual_class_CVR <- individual_class_table %>% mutate(name = fct_rel
                                                        paste(format(round(mean(exp(Individual_Class_Model_CVR_Estimates["Actinopteri", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                            x = -0.75, y = (seq(1, dim(individual_class_table)[1], 1)+0.4)), size = 3.5)
 
-density_individual_class_CVR #(400x800)
+density_individual_class_CVR
 
 # Preparing Graph - Part 1
 
@@ -2836,7 +2801,7 @@ density_individual_class_CVR_1 <- individual_class_table_1 %>% mutate(name = fct
                                                          paste(format(round(mean(exp(Individual_Class_Model_CVR_Estimates["Actinopteri", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                              x = -0.75, y = (seq(1, dim(individual_class_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_individual_class_CVR_1 #(400x480)
+density_individual_class_CVR_1
 
 # Preparing Graph - Part 2
 
@@ -2929,24 +2894,7 @@ density_individual_class_CVR_2 <- individual_class_table_2 %>% mutate(name = fct
                                                          paste(format(round(mean(exp(Individual_Class_Model_CVR_Estimates["Gastropoda", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                             x = -0.75, y = (seq(1, dim(individual_class_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_individual_class_CVR_2 #(400x400)
-
-##### Summary of Individual Plots #####
-
-Individual_Layout <- rbind(c(1, 2),
-                           c(1, 2),
-                           c(1, 2),
-                           c(1, 2),
-                           c(1, 3),
-                           c(1, 3),
-                           c(1, 3),
-                           c(1, 3),
-                           c(1, 3))
-
-Individual_Combined_CVR <- grid.arrange(density_individual_class_CVR, density_individual_fluctuation_CVR, Individual_Amplitude_Plot_CVR, 
-                                        layout_matrix = Individual_Layout)
-
-Individual_Combined_CVR #(850 x 850)
+density_individual_class_CVR_2
 
 ##### Aquatic Subset Model - CVR #####
 Aquatic_Subset_Data <- Individual_Subset_Data %>% filter(Ecosystem == "Aquatic")
@@ -2958,17 +2906,17 @@ Aquatic_A_cor <- as.matrix(Aquatic_A_cor)
 
 Aquatic_VCV_InCVR <- make_VCV_matrix(Aquatic_Subset_Data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
-run <- FALSE
-system.time( #  1ish minutes
+run <- TRUE
+system.time(
   if(run){
     Aquatic_Model_CVR <- metafor::rma.mv(InCVR ~ 1, V = Aquatic_VCV_InCVR, test = "t", dfs = "contain",
                                          random = list(~1|phylo, ~1|Study_ID, ~1|obs, ~1|Scientific_Name, 
                                                        ~1|Shared_Animal_Number, ~1|Measurement), 
                                          R = list(phylo=Aquatic_A_cor), data = Aquatic_Subset_Data, method = "REML", sparse = TRUE, 
                                          control=list(rel.tol=1e-9))
-    saveRDS(Aquatic_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Aquatic_Model_CVR.rds")
+    saveRDS(Aquatic_Model_CVR, "./Aquatic_Model_CVR.rds")
   } else {
-            Aquatic_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Aquatic_Model_CVR.rds")})
+            Aquatic_Model_CVR <- readRDS("./Aquatic_Model_CVR.rds")})
 
 Aquatic_Model_CVR_rob <- robust(Aquatic_Model_CVR, cluster = Aquatic_Subset_Data$Study_ID, adjust = TRUE)
 
@@ -2978,8 +2926,8 @@ Aquatic_Model_CVR_Estimates <- data.frame(estimate = Aquatic_Model_CVR$b,
 Aquatic_Model_CVR_i2 <- data.frame(round(orchaRd::i2_ml(Aquatic_Model_CVR), 2))
 
 #### Aquatic Subset Model - Fluctuation Amplitude Meta-Regression - CVR ####
-run <- FALSE
-system.time( #  1ish minutes
+run <- TRUE
+system.time(
   if(run){
     Aquatic_Amplitude_Model_CVR <- metafor::rma.mv(InCVR, V = Aquatic_VCV_InCVR, test = "t", dfs = "contain",
                                                    mods = ~ T2_Magnitude - 1,
@@ -2987,9 +2935,9 @@ system.time( #  1ish minutes
                                                                  ~1|Shared_Animal_Number, ~1|Measurement), 
                                                    R = list(phylo=Aquatic_A_cor), data = Aquatic_Subset_Data, method = "REML", sparse = TRUE, 
                                                    control=list(rel.tol=1e-9))
-    saveRDS(Aquatic_Amplitude_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Aquatic_Amplitude_Model_CVR.rds")
+    saveRDS(Aquatic_Amplitude_Model_CVR, "./Aquatic_Amplitude_Model_CVR.rds")
   } else {
-            Aquatic_Amplitude_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Aquatic_Amplitude_Model_CVR.rds")})
+            Aquatic_Amplitude_Model_CVR <- readRDS("./Aquatic_Amplitude_Model_CVR.rds")})
 
 Aquatic_Amplitude_Model_CVR_rob <- robust(Aquatic_Amplitude_Model_CVR, cluster = Aquatic_Subset_Data$Study_ID, adjust = TRUE)
 
@@ -3026,7 +2974,7 @@ Aquatic_Amplitude_Plot_CVR <- ggplot(Aquatic_Plot_Data, aes(x = T2_Magnitude, y 
                               coord_cartesian(xlim = c(0, 30), 
                                               ylim = c(-2.5, 2.5))
 
-Aquatic_Amplitude_Plot_CVR #(400x400)
+Aquatic_Amplitude_Plot_CVR
 
 #### Aquatic Subset Model - Type of Fluctuation Meta-Regression - CVR ####
 Aquatic_Fluctuation_Data <- Aquatic_Subset_Data %>% filter(!is.na(Fluctuation_Category))
@@ -3053,8 +3001,8 @@ Aquatic_Fluctuation_A_cor <- as.matrix(Aquatic_Fluctuation_A_cor)
 
 Aquatic_Fluctuation_VCV_InCVR <- make_VCV_matrix(Aquatic_Fluctuation_Data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
-run <- FALSE
-system.time( #  1ish minutes
+run <- TRUE
+system.time(
   if(run){
     Aquatic_Fluctuation_Model_CVR <- metafor::rma.mv(InCVR, V = Aquatic_Fluctuation_VCV_InCVR, test = "t", dfs = "contain",
                                                      mods = ~ Fluctuation_Category - 1,
@@ -3062,9 +3010,9 @@ system.time( #  1ish minutes
                                                                    ~1|Shared_Animal_Number, ~1|Measurement), 
                                                      R = list(phylo=Aquatic_Fluctuation_A_cor), data = Aquatic_Fluctuation_Data, method = "REML", sparse = TRUE, 
                                                      control=list(rel.tol=1e-9))
-    saveRDS(Aquatic_Fluctuation_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Aquatic_Fluctuation_Model_CVR.rds")
+    saveRDS(Aquatic_Fluctuation_Model_CVR, "./Aquatic_Fluctuation_Model_CVR.rds")
   } else {
-            Aquatic_Fluctuation_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Aquatic_Fluctuation_Model_CVR.rds")})
+            Aquatic_Fluctuation_Model_CVR <- readRDS("./Aquatic_Fluctuation_Model_CVR.rds")})
 
 Aquatic_Fluctuation_Model_CVR_rob <- robust(Aquatic_Fluctuation_Model_CVR, cluster = Aquatic_Fluctuation_Data$Study_ID, adjust = TRUE)
 
@@ -3148,7 +3096,7 @@ density_aquatic_fluctuation_CVR <- aquatic_fluctuation_table %>% mutate(name = f
                                                           paste(format(round(mean(exp(Aquatic_Fluctuation_Model_CVR_Estimates["Sinusoidal (Sine Curve)", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                               x = -0.75, y = (seq(1, dim(aquatic_fluctuation_table)[1], 1)+0.4)), size = 3.5)
 
-density_aquatic_fluctuation_CVR #(400x240)
+density_aquatic_fluctuation_CVR
 
 # Preparing Graph - Part 1
 
@@ -3216,7 +3164,7 @@ density_aquatic_fluctuation_CVR_1 <- aquatic_fluctuation_table_1 %>% mutate(name
                                      geom_label(aes(label=c(paste(format(round(mean(exp(Aquatic_Fluctuation_Model_CVR_Estimates["Sinusoidal (Sine Curve)", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                 x = -0.75, y = (seq(1, dim(aquatic_fluctuation_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_aquatic_fluctuation_CVR_1 #(400x160)
+density_aquatic_fluctuation_CVR_1
 
 # Preparing Graph - Part 2
 
@@ -3282,7 +3230,7 @@ density_aquatic_fluctuation_CVR_2 <- aquatic_fluctuation_table_2 %>% mutate(name
                                      geom_label(aes(label=c(paste(format(round(mean(exp(Aquatic_Fluctuation_Model_CVR_Estimates["Alternating", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                 x = -0.75, y = (seq(1, dim(aquatic_fluctuation_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_aquatic_fluctuation_CVR_2 #(400x160)
+density_aquatic_fluctuation_CVR_2
 
 ##### Aquatic Subset Model - Trait Meta-Regression - CVR #####
 Aquatic_Trait_Exploration <- Aquatic_Subset_Data %>% select("Trait_Category") %>% table() %>% data.frame()
@@ -3296,8 +3244,8 @@ Aquatic_Trait_Study_Count <- Aquatic_Subset_Data %>% select("Study_ID", "Trait_C
                              filter(`Freq` != 0) %>% select("Trait_Category") %>% table() %>% data.frame()
 rownames(Aquatic_Trait_Study_Count) <- Aquatic_Trait_Study_Count$Trait_Category
 
-run <- FALSE
-system.time( #  1ish minutes
+run <- TRUE
+system.time(
   if(run){
     Aquatic_Trait_Model_CVR <- metafor::rma.mv(InCVR, V = Aquatic_VCV_InCVR, test = "t", dfs = "contain",
                                                mods = ~ Trait_Category - 1,
@@ -3305,9 +3253,9 @@ system.time( #  1ish minutes
                                                              ~1|Shared_Animal_Number, ~1|Measurement), 
                                                R = list(phylo=Aquatic_A_cor), data = Aquatic_Subset_Data, method = "REML", sparse = TRUE, 
                                                control=list(rel.tol=1e-9))
-    saveRDS(Aquatic_Trait_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Aquatic_Trait_Model_CVR.rds")
+    saveRDS(Aquatic_Trait_Model_CVR, "./Aquatic_Trait_Model_CVR.rds")
   } else {
-            Aquatic_Trait_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Aquatic_Trait_Model_CVR.rds")})
+            Aquatic_Trait_Model_CVR <- readRDS("./Aquatic_Trait_Model_CVR.rds")})
 
 Aquatic_Trait_Model_CVR_rob <- robust(Aquatic_Trait_Model_CVR, cluster = Aquatic_Subset_Data$Study_ID, adjust = TRUE)
 
@@ -3430,7 +3378,7 @@ density_aquatic_trait_CVR <- aquatic_trait_table %>% mutate(name = fct_relevel(n
                                             x = -0.75, y = (seq(1, dim(aquatic_trait_table)[1], 1)+0.4)), size = 3.5, 
                              fontface = c("plain", "plain", "bold", "plain", "plain", "plain"))
 
-density_aquatic_trait_CVR #(400x540)
+density_aquatic_trait_CVR
 
 # Preparing Graph - Part 1
 
@@ -3515,7 +3463,7 @@ density_aquatic_trait_CVR_1 <- aquatic_trait_table_1 %>% mutate(name = fct_relev
                                           x = -0.75, y = (seq(1, dim(aquatic_trait_table_1)[1], 1)+0.4)), size = 3.5, 
                                fontface = c("plain", "plain", "plain"))
 
-density_aquatic_trait_CVR_1 #(400x320)
+density_aquatic_trait_CVR_1
 
 # Preparing Graph - Part 2
 
@@ -3600,7 +3548,7 @@ density_aquatic_trait_CVR_2 <- aquatic_trait_table_2 %>% mutate(name = fct_relev
                                           x = -0.75, y = (seq(1, dim(aquatic_trait_table_2)[1], 1)+0.4)), size = 3.5, 
                                fontface = c("plain", "plain", "bold"))
 
-density_aquatic_trait_CVR_2 #(400x320)
+density_aquatic_trait_CVR_2
 
 ##### Aquatic Subset Model - Plasticity Mechanism Meta-Regression - CVR #####
 Aquatic_Plasticity_Exploration <- Aquatic_Subset_Data %>% select("Plasticity_Mechanism") %>% table() %>% data.frame()
@@ -3614,8 +3562,8 @@ Aquatic_Plasticity_Study_Count <- Aquatic_Subset_Data %>% select("Study_ID", "Pl
                                   filter(`Freq` != 0) %>% select("Plasticity_Mechanism") %>% table() %>% data.frame()
 rownames(Aquatic_Plasticity_Study_Count) <- Aquatic_Plasticity_Study_Count$Plasticity_Mechanism
 
-run <- FALSE
-system.time( #  1ish minutes
+run <- TRUE
+system.time(
   if(run){
     Aquatic_Plasticity_Model_CVR <- metafor::rma.mv(InCVR, V = Aquatic_VCV_InCVR, test = "t", dfs = "contain",
                                                     mods = ~ Plasticity_Mechanism - 1,
@@ -3623,9 +3571,9 @@ system.time( #  1ish minutes
                                                                   ~1|Shared_Animal_Number, ~1|Measurement), 
                                                     R = list(phylo=Aquatic_A_cor), data = Aquatic_Subset_Data, method = "REML", sparse = TRUE, 
                                                     control=list(rel.tol=1e-9))
-    saveRDS(Aquatic_Plasticity_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Aquatic_Plasticity_Model_CVR.rds")
+    saveRDS(Aquatic_Plasticity_Model_CVR, "./Aquatic_Plasticity_Model_CVR.rds")
   } else {
-            Aquatic_Plasticity_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Aquatic_Plasticity_Model_CVR.rds")})
+            Aquatic_Plasticity_Model_CVR <- readRDS("./Aquatic_Plasticity_Model_CVR.rds")})
 
 Aquatic_Plasticity_Model_CVR_rob <- robust(Aquatic_Plasticity_Model_CVR, cluster = Aquatic_Subset_Data$Study_ID, adjust = TRUE)
 
@@ -3707,7 +3655,7 @@ density_aquatic_plasticity_CVR <- aquatic_plasticity_table %>% mutate(name = fct
                                                          paste(format(round(mean(exp(Aquatic_Plasticity_Model_CVR_Estimates["Acclimation", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                              x = -0.75, y = (seq(1, dim(aquatic_plasticity_table)[1], 1)+0.4)), size = 3.5)
 
-density_aquatic_plasticity_CVR #(400x240)
+density_aquatic_plasticity_CVR
 
 # Preparing Graph - Part 1
 
@@ -3775,7 +3723,7 @@ density_aquatic_plasticity_CVR_1 <- aquatic_plasticity_table_1 %>% mutate(name =
                                     geom_label(aes(label=c(paste(format(round(mean(exp(Aquatic_Plasticity_Model_CVR_Estimates["Acclimation", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                x = -0.75, y = (seq(1, dim(aquatic_plasticity_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_aquatic_plasticity_CVR_1 #(400x160)
+density_aquatic_plasticity_CVR_1
 
 # Preparing Graph - Part 2
 
@@ -3841,7 +3789,7 @@ density_aquatic_plasticity_CVR_2 <- aquatic_plasticity_table_2 %>% mutate(name =
                                     geom_label(aes(label=c(paste(format(round(mean(exp(Aquatic_Plasticity_Model_CVR_Estimates["Development", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                x = -0.75, y = (seq(1, dim(aquatic_plasticity_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_aquatic_plasticity_CVR_2 #(400x160)
+density_aquatic_plasticity_CVR_2
 
 ##### Aquatic Subset Model - Specific Trait Meta-Regression - CVR #####
 Aquatic_Specific_Trait_Exploration <- Aquatic_Subset_Data %>% select("Measurement") %>% table() %>% data.frame()
@@ -3874,8 +3822,8 @@ Aquatic_Specific_Trait_Fluctuation_A_cor <- as.matrix(Aquatic_Specific_Trait_Flu
 
 Aquatic_Specific_Trait_Fluctuation_VCV_InCVR <- make_VCV_matrix(Aquatic_Specific_Trait_Data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
-run <- FALSE
-system.time( #  1ish minutes
+run <- TRUE
+system.time(
   if(run){
     Aquatic_Specific_Trait_Model_CVR <- metafor::rma.mv(InCVR, V = Aquatic_Specific_Trait_Fluctuation_VCV_InCVR, test = "t", dfs = "contain",
                                                         mods = ~ Measurement - 1,
@@ -3883,9 +3831,9 @@ system.time( #  1ish minutes
                                                                       ~1|Shared_Animal_Number), 
                                                         R = list(phylo=Aquatic_Specific_Trait_Fluctuation_A_cor), data = Aquatic_Specific_Trait_Data, method = "REML", sparse = TRUE, 
                                                         control=list(rel.tol=1e-9))
-    saveRDS(Aquatic_Specific_Trait_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Aquatic_Specific_Trait_Model_CVR.rds")
+    saveRDS(Aquatic_Specific_Trait_Model_CVR, "./Aquatic_Specific_Trait_Model_CVR.rds")
   } else {
-            Aquatic_Specific_Trait_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Aquatic_Specific_Trait_Model_CVR.rds")})
+            Aquatic_Specific_Trait_Model_CVR <- readRDS("./Aquatic_Specific_Trait_Model_CVR.rds")})
 
 Aquatic_Specific_Trait_Model_CVR_rob <- robust(Aquatic_Specific_Trait_Model_CVR, cluster = Aquatic_Specific_Trait_Data$Study_ID, adjust = TRUE)
 
@@ -4041,7 +3989,7 @@ density_aquatic_specific_trait_CVR <- aquatic_specific_trait_table %>% mutate(na
                                        fontface = c("plain", "plain", "plain", "plain", "plain", 
                                                     "plain", "bold", "plain", "plain"))
 
-density_aquatic_specific_trait_CVR #(400x800)
+density_aquatic_specific_trait_CVR
 
 # Preparing Graph - Part 1
 
@@ -4146,7 +4094,7 @@ density_aquatic_specific_trait_CVR_1 <- aquatic_specific_trait_table_1 %>% mutat
                                                   x = -0.75, y = (seq(1, dim(aquatic_specific_trait_table_1)[1], 1)+0.4)), size = 3.5, 
                                                   fontface = c("plain", "plain", "bold", "plain", "plain"))
 
-density_aquatic_specific_trait_CVR_1 #(400x480)
+density_aquatic_specific_trait_CVR_1
 
 # Preparing Graph - Part 2
 
@@ -4242,29 +4190,7 @@ density_aquatic_specific_trait_CVR_2 <- aquatic_specific_trait_table_2 %>% mutat
                                                    x = -0.75, y = (seq(1, dim(aquatic_specific_trait_table_2)[1], 1)+0.4)), size = 3.5, 
                                         fontface = c("plain", "plain", "plain", "plain"))
 
-density_aquatic_specific_trait_CVR_2 #(400x400)
-
-
-##### Summary of Aquatic Plots #####
-
-Aquatic_Layout <- rbind(c(1, 2), 
-                        c(1, 2),
-                        c(1, 2),
-                        c(1, 2),
-                        c(1, 2),
-                        c(1, 2),
-                        c(1, 3),
-                        c(1, 3),
-                        c(1, 3),
-                        c(1, 4),
-                        c(1, 4),
-                        c(1, 4))
-
-Aquatic_Combined_CVR <- grid.arrange(density_aquatic_specific_trait_CVR, density_aquatic_trait_CVR, 
-                                     density_aquatic_fluctuation_CVR, density_aquatic_plasticity_CVR, 
-                                     layout_matrix = Aquatic_Layout)
-
-Aquatic_Combined_CVR #(850 x 900 - does not include amplitude plot)
+density_aquatic_specific_trait_CVR_2
 
 ##### Terrestrial Subset Model - CVR #####
 Terrestrial_Subset_Data <- Individual_Subset_Data %>% filter(Ecosystem == "Terrestrial")
@@ -4276,17 +4202,17 @@ Terrestrial_A_cor <- as.matrix(Terrestrial_A_cor)
 
 Terrestrial_VCV_InCVR <- make_VCV_matrix(Terrestrial_Subset_Data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
-run <- FALSE
-system.time( #  8ish minutes
+run <- TRUE
+system.time(
   if(run){
     Terrestrial_Model_CVR <- metafor::rma.mv(InCVR ~ 1, V = Terrestrial_VCV_InCVR, test = "t", dfs = "contain",
                                              random = list(~1|phylo, ~1|Study_ID, ~1|obs, ~1|Scientific_Name, 
                                                            ~1|Shared_Animal_Number, ~1|Measurement), 
                                              R = list(phylo=Terrestrial_A_cor), data = Terrestrial_Subset_Data, method = "REML", sparse = TRUE, 
                                              control=list(rel.tol=1e-9))
-    saveRDS(Terrestrial_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Terrestrial_Model_CVR.rds")
+    saveRDS(Terrestrial_Model_CVR, "./Terrestrial_Model_CVR.rds")
   } else {
-            Terrestrial_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Terrestrial_Model_CVR.rds")})
+            Terrestrial_Model_CVR <- readRDS("./Terrestrial_Model_CVR.rds")})
 
 Terrestrial_Model_CVR_rob <- robust(Terrestrial_Model_CVR, cluster = Terrestrial_Subset_Data$Study_ID, adjust = TRUE)
 
@@ -4296,8 +4222,8 @@ Terrestrial_Model_CVR_Estimates <- data.frame(estimate = Terrestrial_Model_CVR$b
 Terrestrial_Model_CVR_i2 <- data.frame(round(orchaRd::i2_ml(Terrestrial_Model_CVR), 2))
 
 #### Terrestrial Subset Model - Fluctuation Amplitude Meta-Regression - CVR ####
-run <- FALSE
-system.time( #  3ish minutes
+run <- TRUE
+system.time(
   if(run){
     Terrestrial_Amplitude_Model_CVR <- metafor::rma.mv(InCVR, V = Terrestrial_VCV_InCVR, test = "t", dfs = "contain",
                                                        mods = ~ T2_Magnitude - 1,
@@ -4305,9 +4231,9 @@ system.time( #  3ish minutes
                                                                      ~1|Shared_Animal_Number, ~1|Measurement), 
                                                        R = list(phylo=Terrestrial_A_cor), data = Terrestrial_Subset_Data, method = "REML", sparse = TRUE, 
                                                        control=list(rel.tol=1e-9))
-    saveRDS(Terrestrial_Amplitude_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Terrestrial_Amplitude_Model_CVR.rds")
+    saveRDS(Terrestrial_Amplitude_Model_CVR, "./Terrestrial_Amplitude_Model_CVR.rds")
   } else {
-            Terrestrial_Amplitude_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Terrestrial_Amplitude_Model_CVR.rds")})
+            Terrestrial_Amplitude_Model_CVR <- readRDS("./Terrestrial_Amplitude_Model_CVR.rds")})
 
 Terrestrial_Amplitude_Model_CVR_rob <- robust(Terrestrial_Amplitude_Model_CVR, cluster = Terrestrial_Subset_Data$Study_ID, adjust = TRUE)
 
@@ -4344,7 +4270,7 @@ Terrestrial_Amplitude_Plot_CVR <- ggplot(Terrestrial_Plot_Data, aes(x = T2_Magni
                                   coord_cartesian(xlim = c(0, 30), 
                                                   ylim = c(-2.5, 2.5))
 
-Terrestrial_Amplitude_Plot_CVR #(400x400)
+Terrestrial_Amplitude_Plot_CVR
 
 #### Terrestrial Subset Model - Type of Fluctuation Meta-Regression - CVR ####
 Terrestrial_Fluctuation_Data <- Terrestrial_Subset_Data %>% filter(!is.na(Fluctuation_Category))
@@ -4368,7 +4294,7 @@ Terrestrial_Fluctuation_A_cor <- as.matrix(Terrestrial_Fluctuation_A_cor)
 
 Terrestrial_Fluctuation_VCV_InCVR <- make_VCV_matrix(Terrestrial_Fluctuation_Data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
-run <- FALSE
+run <- TRUE
 system.time( #  6ish minutes
   if(run){
     Terrestrial_Fluctuation_Model_CVR <- metafor::rma.mv(InCVR, V = Terrestrial_Fluctuation_VCV_InCVR, test = "t", dfs = "contain",
@@ -4377,9 +4303,9 @@ system.time( #  6ish minutes
                                                                        ~1|Shared_Animal_Number, ~1|Measurement), 
                                                          R = list(phylo=Terrestrial_Fluctuation_A_cor), data = Terrestrial_Fluctuation_Data, method = "REML", sparse = TRUE, 
                                                          control=list(rel.tol=1e-9))
-    saveRDS(Terrestrial_Fluctuation_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Terrestrial_Fluctuation_Model_CVR.rds")
+    saveRDS(Terrestrial_Fluctuation_Model_CVR, "./Terrestrial_Fluctuation_Model_CVR.rds")
   } else {
-            Terrestrial_Fluctuation_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Terrestrial_Fluctuation_Model_CVR.rds")})
+            Terrestrial_Fluctuation_Model_CVR <- readRDS("./Terrestrial_Fluctuation_Model_CVR.rds")})
 
 Terrestrial_Fluctuation_Model_CVR_rob <- robust(Terrestrial_Fluctuation_Model_CVR, cluster = Terrestrial_Fluctuation_Data$Study_ID, adjust = TRUE)
 
@@ -4482,7 +4408,7 @@ density_terrestrial_fluctuation_CVR <- terrestrial_fluctuation_table %>% mutate(
                                                               paste(format(round(mean(exp(Terrestrial_Fluctuation_Model_CVR_Estimates["Sinusoidal (Sine Curve)", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                   x = -0.75, y = (seq(1, dim(terrestrial_fluctuation_table)[1], 1)+0.4)), size = 3.5)
 
-density_terrestrial_fluctuation_CVR #(400x400)
+density_terrestrial_fluctuation_CVR
 
 # Preparing Graph - Part 1
 
@@ -4557,7 +4483,7 @@ density_terrestrial_fluctuation_CVR_1 <- terrestrial_fluctuation_table_1 %>% mut
                                                                 paste(format(round(mean(exp(Terrestrial_Fluctuation_Model_CVR_Estimates["Sinusoidal (Sine Curve)", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                     x = -0.75, y = (seq(1, dim(terrestrial_fluctuation_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_terrestrial_fluctuation_CVR_1 #(400x240)
+density_terrestrial_fluctuation_CVR_1
 
 # Preparing Graph - Part 2
 
@@ -4632,7 +4558,7 @@ density_terrestrial_fluctuation_CVR_2 <- terrestrial_fluctuation_table_2 %>% mut
                                                                 paste(format(round(mean(exp(Terrestrial_Fluctuation_Model_CVR_Estimates["Stepwise", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                     x = -0.75, y = (seq(1, dim(terrestrial_fluctuation_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_terrestrial_fluctuation_CVR_2 #(400x240)
+density_terrestrial_fluctuation_CVR_2
 
 ##### Terrestrial Subset Model - Trait Meta-Regression - CVR #####
 Terrestrial_Trait_Exploration <- Terrestrial_Subset_Data %>% select("Trait_Category") %>% table() %>% data.frame()
@@ -4646,8 +4572,8 @@ Terrestrial_Trait_Study_Count <- Terrestrial_Subset_Data %>% select("Study_ID", 
                                  filter(`Freq` != 0) %>% select("Trait_Category") %>% table() %>% data.frame()
 rownames(Terrestrial_Trait_Study_Count) <- Terrestrial_Trait_Study_Count$Trait_Category
 
-run <- FALSE
-system.time( #  8ish minutes
+run <- TRUE
+system.time(
   if(run){
     Terrestrial_Trait_Model_CVR <- metafor::rma.mv(InCVR, V = Terrestrial_VCV_InCVR, test = "t", dfs = "contain",
                                                    mods = ~ Trait_Category - 1,
@@ -4655,9 +4581,9 @@ system.time( #  8ish minutes
                                                                  ~1|Shared_Animal_Number, ~1|Measurement), 
                                                    R = list(phylo=Terrestrial_A_cor), data = Terrestrial_Subset_Data, method = "REML", sparse = TRUE, 
                                                    control=list(rel.tol=1e-9))
-    saveRDS(Terrestrial_Trait_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Terrestrial_Trait_Model_CVR.rds")
+    saveRDS(Terrestrial_Trait_Model_CVR, "./Terrestrial_Trait_Model_CVR.rds")
   } else {
-            Terrestrial_Trait_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Terrestrial_Trait_Model_CVR.rds")})
+            Terrestrial_Trait_Model_CVR <- readRDS("./Terrestrial_Trait_Model_CVR.rds")})
 
 Terrestrial_Trait_Model_CVR_rob <- robust(Terrestrial_Trait_Model_CVR, cluster = Terrestrial_Subset_Data$Study_ID, adjust = TRUE)
 
@@ -4777,7 +4703,7 @@ density_terrestrial_trait_CVR <- terrestrial_trait_table %>% mutate(name = fct_r
                                                         paste(format(round(mean(exp(Terrestrial_Trait_Model_CVR_Estimates["Behavioural", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                             x = -0.75, y = (seq(1, dim(terrestrial_trait_table)[1], 1)+0.4)), size = 3.5)
 
-density_terrestrial_trait_CVR #(400x560)
+density_terrestrial_trait_CVR
 
 # Preparing Graph - Part 1
 
@@ -4861,7 +4787,7 @@ density_terrestrial_trait_CVR_1 <- terrestrial_trait_table_1 %>% mutate(name = f
                                                           paste(format(round(mean(exp(Terrestrial_Trait_Model_CVR_Estimates["Behavioural", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                               x = -0.75, y = (seq(1, dim(terrestrial_trait_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_terrestrial_trait_CVR_1 #(400x320)
+density_terrestrial_trait_CVR_1
 
 # Preparing Graph - Part 2
 
@@ -4945,7 +4871,7 @@ density_terrestrial_trait_CVR_2 <- terrestrial_trait_table_2 %>% mutate(name = f
                                                           paste(format(round(mean(exp(Terrestrial_Trait_Model_CVR_Estimates["Life-History Traits", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                               x = -0.75, y = (seq(1, dim(terrestrial_trait_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_terrestrial_trait_CVR_2 #(400x320)
+density_terrestrial_trait_CVR_2
 
 ##### Terrestrial Subset Model - Plasticity Mechanism Meta-Regression - CVR #####
 Terrestrial_Plasticity_Exploration <- Terrestrial_Subset_Data %>% select("Plasticity_Mechanism") %>% table() %>% data.frame()
@@ -4959,8 +4885,8 @@ Terrestrial_Plasticity_Study_Count <- Terrestrial_Subset_Data %>% select("Study_
                                       filter(`Freq` != 0) %>% select("Plasticity_Mechanism") %>% table() %>% data.frame()
 rownames(Terrestrial_Plasticity_Study_Count) <- Terrestrial_Plasticity_Study_Count$Plasticity_Mechanism
 
-run <- FALSE
-system.time( #  8ish minutes
+run <- TRUE
+system.time(
   if(run){
     Terrestrial_Plasticity_Model_CVR <- metafor::rma.mv(InCVR, V = Terrestrial_VCV_InCVR, test = "t", dfs = "contain",
                                                         mods = ~ Plasticity_Mechanism - 1,
@@ -4968,9 +4894,9 @@ system.time( #  8ish minutes
                                                                       ~1|Shared_Animal_Number, ~1|Measurement), 
                                                         R = list(phylo=Terrestrial_A_cor), data = Terrestrial_Subset_Data, method = "REML", sparse = TRUE, 
                                                         control=list(rel.tol=1e-9))
-    saveRDS(Terrestrial_Plasticity_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Terrestrial_Plasticity_Model_CVR.rds")
+    saveRDS(Terrestrial_Plasticity_Model_CVR, "./Terrestrial_Plasticity_Model_CVR.rds")
   } else {
-            Terrestrial_Plasticity_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Terrestrial_Plasticity_Model_CVR.rds")})
+            Terrestrial_Plasticity_Model_CVR <- readRDS("./Terrestrial_Plasticity_Model_CVR.rds")})
 
 Terrestrial_Plasticity_Model_CVR_rob <- robust(Terrestrial_Plasticity_Model_CVR, cluster = Terrestrial_Subset_Data$Study_ID, adjust = TRUE)
 
@@ -5052,7 +4978,7 @@ density_terrestrial_plasticity_CVR <- terrestrial_plasticity_table %>% mutate(na
                                                              paste(format(round(mean(exp(Terrestrial_Plasticity_Model_CVR_Estimates["Acclimation", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                  x = -0.75, y = (seq(1, dim(terrestrial_plasticity_table)[1], 1)+0.4)), size = 3.5)
 
-density_terrestrial_plasticity_CVR #(400x240)
+density_terrestrial_plasticity_CVR
 
 # Preparing Graph - Part 1
 
@@ -5118,7 +5044,7 @@ density_terrestrial_plasticity_CVR_1 <- terrestrial_plasticity_table_1 %>% mutat
                                         geom_label(aes(label=c(paste(format(round(mean(exp(Terrestrial_Plasticity_Model_CVR_Estimates["Acclimation", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                    x = -0.75, y = (seq(1, dim(terrestrial_plasticity_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_terrestrial_plasticity_CVR_1 #(400x160)
+density_terrestrial_plasticity_CVR_1
 
 # Preparing Graph - Part 2
 
@@ -5184,7 +5110,7 @@ density_terrestrial_plasticity_CVR_2 <- terrestrial_plasticity_table_2 %>% mutat
                                         geom_label(aes(label=c(paste(format(round(mean(exp(Terrestrial_Plasticity_Model_CVR_Estimates["Development", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                    x = -0.75, y = (seq(1, dim(terrestrial_plasticity_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_terrestrial_plasticity_CVR_2 #(400x160)
+density_terrestrial_plasticity_CVR_2 
 
 ##### Terrestrial Subset Model - Specific Trait Meta-Regression - CVR #####
 Terrestrial_Specific_Trait_Exploration <- Terrestrial_Subset_Data %>% select("Measurement") %>% table() %>% data.frame()
@@ -5220,8 +5146,8 @@ Terrestrial_Specific_Trait_A_cor <- as.matrix(Terrestrial_Specific_Trait_A_cor)
 
 Terrestrial_Specific_Trait_VCV_InCVR <- make_VCV_matrix(Terrestrial_Specific_Trait_Data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
-run <- FALSE
-system.time( #  3ish minutes
+run <- TRUE
+system.time(
   if(run){
     Terrestrial_Specific_Trait_Model_CVR <- metafor::rma.mv(InCVR, V = Terrestrial_Specific_Trait_VCV_InCVR, test = "t", dfs = "contain",
                                                             mods = ~ Measurement - 1,
@@ -5229,9 +5155,9 @@ system.time( #  3ish minutes
                                                                           ~1|Shared_Animal_Number), 
                                                             R = list(phylo=Terrestrial_Specific_Trait_A_cor), data = Terrestrial_Specific_Trait_Data, method = "REML", sparse = TRUE, 
                                                             control=list(rel.tol=1e-9))
-    saveRDS(Terrestrial_Specific_Trait_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Terrestrial_Specific_Trait_Model_CVR.rds")
+    saveRDS(Terrestrial_Specific_Trait_Model_CVR, "./Terrestrial_Specific_Trait_Model_CVR.rds")
   } else {
-            Terrestrial_Specific_Trait_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Terrestrial_Specific_Trait_Model_CVR.rds")})
+            Terrestrial_Specific_Trait_Model_CVR <- readRDS("./Terrestrial_Specific_Trait_Model_CVR.rds")})
 
 Terrestrial_Specific_Trait_Model_CVR_rob <- robust(Terrestrial_Specific_Trait_Model_CVR, cluster = Terrestrial_Specific_Trait_Data$Study_ID, adjust = TRUE)
 
@@ -5410,7 +5336,7 @@ density_terrestrial_specific_trait_CVR <- terrestrial_specific_trait_table %>% m
                                                                  paste(format(round(mean(exp(Terrestrial_Specific_Trait_Model_CVR_Estimates["Development Time", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                      x = -0.75, y = (seq(1, dim(terrestrial_specific_trait_table)[1], 1)+0.4)), size = 3.5)
 
-density_terrestrial_specific_trait_CVR #(400x1040)
+density_terrestrial_specific_trait_CVR
 
 # Preparing Graph - Part 1
 
@@ -5521,7 +5447,7 @@ density_terrestrial_specific_trait_CVR_1 <- terrestrial_specific_trait_table_1 %
                                                                        paste(format(round(mean(exp(Terrestrial_Specific_Trait_Model_CVR_Estimates["Development Time", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                           x = -0.75, y = (seq(1, dim(terrestrial_specific_trait_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_terrestrial_specific_trait_CVR_1 #(400x540)
+density_terrestrial_specific_trait_CVR_1
 
 # Preparing Graph - Part 2
 
@@ -5633,28 +5559,7 @@ density_terrestrial_specific_trait_CVR_2 <- terrestrial_specific_trait_table_2 %
                                                                    paste(format(round(mean(exp(Terrestrial_Specific_Trait_Model_CVR_Estimates["Longevity", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                        x = -0.75, y = (seq(1, dim(terrestrial_specific_trait_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_terrestrial_specific_trait_CVR_2 #(400x540)
-
-##### Summary of Terrestrial Plots #####
-
-Terrestrial_Layout <- rbind(c(1, 2), 
-                            c(1, 2),
-                            c(1, 2),
-                            c(1, 2),
-                            c(1, 2),
-                            c(1, 2),
-                            c(1, 3),
-                            c(1, 3),
-                            c(1, 3),
-                            c(1, 3),
-                            c(1, 4),
-                            c(1, 4))
-
-Terrestrial_Combined_CVR <- grid.arrange(density_terrestrial_specific_trait_CVR, density_terrestrial_trait_CVR, 
-                                         density_terrestrial_fluctuation_CVR, density_terrestrial_plasticity_CVR, 
-                                         layout_matrix = Terrestrial_Layout)
-
-Terrestrial_Combined_CVR #(850 x 900 - does not include amplitude plot)
+density_terrestrial_specific_trait_CVR_2
 
 ##### Acclimation Subset Model - CVR #####
 Acclimation_Subset_Data <- Individual_Subset_Data %>% filter(Plasticity_Mechanism == "Acclimation")
@@ -5666,17 +5571,17 @@ Acclimation_A_cor <- as.matrix(Acclimation_A_cor)
 
 Acclimation_VCV_InCVR <- make_VCV_matrix(Acclimation_Subset_Data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
-run <- FALSE
-system.time( #  1ish minutes
+run <- TRUE
+system.time(
   if(run){
     Acclimation_Model_CVR <- metafor::rma.mv(InCVR ~ 1, V = Acclimation_VCV_InCVR, test = "t", dfs = "contain",
                                              random = list(~1|phylo, ~1|Study_ID, ~1|obs, ~1|Scientific_Name, 
                                                            ~1|Shared_Animal_Number, ~1|Measurement), 
                                              R = list(phylo=Acclimation_A_cor), data = Acclimation_Subset_Data, method = "REML", sparse = TRUE, 
                                              control=list(rel.tol=1e-9))
-    saveRDS(Acclimation_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Acclimation_Model_CVR.rds")
+    saveRDS(Acclimation_Model_CVR, "./Acclimation_Model_CVR.rds")
   } else {
-            Acclimation_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Acclimation_Model_CVR.rds")})
+            Acclimation_Model_CVR <- readRDS("./Acclimation_Model_CVR.rds")})
 
 Acclimation_Model_CVR_rob <- robust(Acclimation_Model_CVR, cluster = Acclimation_Subset_Data$Study_ID, adjust = TRUE)
 
@@ -5686,8 +5591,8 @@ Acclimation_Model_CVR_Estimates <- data.frame(estimate = Acclimation_Model_CVR$b
 Acclimation_Model_CVR_i2 <- data.frame(round(orchaRd::i2_ml(Acclimation_Model_CVR), 2))
 
 #### Acclimation Subset Model - Fluctuation Amplitude Meta-Regression - CVR ####
-run <- FALSE
-system.time( #  1ish minutes
+run <- TRUE
+system.time(
   if(run){
     Acclimation_Amplitude_Model_CVR <- metafor::rma.mv(InCVR, V = Acclimation_VCV_InCVR, test = "t", dfs = "contain",
                                                        mods = ~ T2_Magnitude - 1,
@@ -5695,9 +5600,9 @@ system.time( #  1ish minutes
                                                                      ~1|Shared_Animal_Number, ~1|Measurement), 
                                                        R = list(phylo=Acclimation_A_cor), data = Acclimation_Subset_Data, method = "REML", sparse = TRUE, 
                                                        control=list(rel.tol=1e-9))
-    saveRDS(Acclimation_Amplitude_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Acclimation_Amplitude_Model_CVR.rds")
+    saveRDS(Acclimation_Amplitude_Model_CVR, "./Acclimation_Amplitude_Model_CVR.rds")
   } else {
-            Acclimation_Amplitude_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Acclimation_Amplitude_Model_CVR.rds")})
+            Acclimation_Amplitude_Model_CVR <- readRDS("./Acclimation_Amplitude_Model_CVR.rds")})
 
 Acclimation_Amplitude_Model_CVR_rob <- robust(Acclimation_Amplitude_Model_CVR, cluster = Acclimation_Subset_Data$Study_ID, adjust = TRUE)
 
@@ -5734,11 +5639,11 @@ Acclimation_Amplitude_Plot_CVR <- ggplot(Acclimation_Plot_Data, aes(x = T2_Magni
                                   coord_cartesian(xlim = c(0, 30), 
                                                   ylim = c(-2.5, 2.5))
 
-Acclimation_Amplitude_Plot_CVR #(400x400)
+Acclimation_Amplitude_Plot_CVR
 
 #### Acclimation Subset Model - Exposure Time Meta-Regression - CVR ####
-run <- FALSE
-system.time( #  1ish minutes
+run <- TRUE
+system.time(
   if(run){
     Acclimation_Exposure_Model_CVR <- metafor::rma.mv(InCVR, V = Acclimation_VCV_InCVR, test = "t", dfs = "contain",
                                                       mods = ~ Acclimation_Exposure_Time - 1,
@@ -5746,9 +5651,9 @@ system.time( #  1ish minutes
                                                                     ~1|Shared_Animal_Number, ~1|Measurement), 
                                                       R = list(phylo=Acclimation_A_cor), data = Acclimation_Subset_Data, method = "REML", sparse = TRUE, 
                                                       control=list(rel.tol=1e-9))
-    saveRDS(Acclimation_Exposure_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Acclimation_Exposure_Model_CVR.rds")
+    saveRDS(Acclimation_Exposure_Model_CVR, "./Acclimation_Exposure_Model_CVR.rds")
   } else {
-            Acclimation_Exposure_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Acclimation_Exposure_Model_CVR.rds")})
+            Acclimation_Exposure_Model_CVR <- readRDS("./Acclimation_Exposure_Model_CVR.rds")})
 
 Acclimation_Exposure_Model_CVR_rob <- robust(Acclimation_Exposure_Model_CVR, cluster = Acclimation_Subset_Data$Study_ID, adjust = TRUE)
 
@@ -5785,7 +5690,7 @@ Acclimation_Exposure_Amplitude_Plot_CVR <- ggplot(Acclimation_Exposure_Plot_Data
                                            coord_cartesian(xlim = c(0, 100), 
                                                            ylim = c(-2.5, 2.5))
 
-Acclimation_Exposure_Amplitude_Plot_CVR #(400x400)
+Acclimation_Exposure_Amplitude_Plot_CVR
 
 #### Acclimation Subset Model - Fluctuation Frequency Meta-Regression - CVR ####
 Acclimation_Frequency_Data <- Acclimation_Subset_Data %>% filter(!is.na(Number_Of_Fluctuations))
@@ -5797,8 +5702,8 @@ Acclimation_Frequency_A_cor <- as.matrix(Acclimation_Frequency_A_cor)
 
 Acclimation_Frequency_VCV_InCVR <- make_VCV_matrix(Acclimation_Frequency_Data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
-run <- FALSE
-system.time( #  1ish minutes
+run <- TRUE
+system.time(
   if(run){
     Acclimation_Frequency_Model_CVR <- metafor::rma.mv(InCVR, V = Acclimation_Frequency_VCV_InCVR, test = "t", dfs = "contain",
                                                        mods = ~ Number_Of_Fluctuations - 1,
@@ -5806,9 +5711,9 @@ system.time( #  1ish minutes
                                                                      ~1|Shared_Animal_Number, ~1|Measurement), 
                                                        R = list(phylo=Acclimation_Frequency_A_cor), data = Acclimation_Frequency_Data, method = "REML", sparse = TRUE, 
                                                        control=list(rel.tol=1e-9))
-    saveRDS(Acclimation_Frequency_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Acclimation_Frequency_Model_CVR.rds")
+    saveRDS(Acclimation_Frequency_Model_CVR, "./Acclimation_Frequency_Model_CVR.rds")
   } else {
-            Acclimation_Frequency_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Acclimation_Frequency_Model_CVR.rds")})
+            Acclimation_Frequency_Model_CVR <- readRDS("./Acclimation_Frequency_Model_CVR.rds")})
 
 Acclimation_Frequency_Model_CVR_rob <- robust(Acclimation_Frequency_Model_CVR, cluster = Acclimation_Frequency_Data$Study_ID, adjust = TRUE)
 
@@ -5845,7 +5750,7 @@ Acclimation_Frequency_Plot_CVR <- ggplot(Acclimation_Frequency_Plot_Data, aes(x 
                                   coord_cartesian(xlim = c(0, 100), 
                                                   ylim = c(-2.5, 2.5))
 
-Acclimation_Frequency_Plot_CVR #(400x400)
+Acclimation_Frequency_Plot_CVR
 
 #### Acclimation Subset Model - Type of Fluctuation Meta-Regression - CVR ####
 Acclimation_Fluctuation_Data <- Acclimation_Subset_Data %>% filter(!is.na(Fluctuation_Category))
@@ -5871,8 +5776,8 @@ Acclimation_Fluctuation_A_cor <- as.matrix(Acclimation_Fluctuation_A_cor)
 
 Acclimation_Fluctuation_VCV_InCVR <- make_VCV_matrix(Acclimation_Fluctuation_Data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
-run <- FALSE
-system.time( #  1ish minutes
+run <- TRUE
+system.time(
   if(run){
     Acclimation_Fluctuation_Model_CVR <- metafor::rma.mv(InCVR, V = Acclimation_Fluctuation_VCV_InCVR, test = "t", dfs = "contain",
                                                          mods = ~ Fluctuation_Category - 1,
@@ -5880,9 +5785,9 @@ system.time( #  1ish minutes
                                                                        ~1|Shared_Animal_Number, ~1|Measurement), 
                                                          R = list(phylo=Acclimation_Fluctuation_A_cor), data = Acclimation_Fluctuation_Data, method = "REML", sparse = TRUE, 
                                                          control=list(rel.tol=1e-9))
-    saveRDS(Acclimation_Fluctuation_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Acclimation_Fluctuation_Model_CVR.rds")
+    saveRDS(Acclimation_Fluctuation_Model_CVR, "./Acclimation_Fluctuation_Model_CVR.rds")
   } else {
-            Acclimation_Fluctuation_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Acclimation_Fluctuation_Model_CVR.rds")})
+            Acclimation_Fluctuation_Model_CVR <- readRDS("./Acclimation_Fluctuation_Model_CVR.rds")})
 
 Acclimation_Fluctuation_Model_CVR_rob <- robust(Acclimation_Fluctuation_Model_CVR, cluster = Acclimation_Fluctuation_Data$Study_ID, adjust = TRUE)
 
@@ -5977,7 +5882,7 @@ density_acclimation_fluctuation_CVR <- acclimation_fluctuation_table %>% mutate(
                                                               paste(format(round(mean(exp(Acclimation_Fluctuation_Model_CVR_Estimates["Sinusoidal (Sine Curve)", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                   x = -0.75, y = (seq(1, dim(acclimation_fluctuation_table)[1], 1)+0.4)), size = 3.5)
 
-density_acclimation_fluctuation_CVR #(400x320)
+density_acclimation_fluctuation_CVR
 
 # Preparing Graph - Part 1
 
@@ -6052,7 +5957,7 @@ density_acclimation_fluctuation_CVR_1 <- acclimation_fluctuation_table_1 %>% mut
                                                                 paste(format(round(mean(exp(Acclimation_Fluctuation_Model_CVR_Estimates["Sinusoidal (Sine Curve)", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                     x = -0.75, y = (seq(1, dim(acclimation_fluctuation_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_acclimation_fluctuation_CVR_1 #(400x240)
+density_acclimation_fluctuation_CVR_1
 
 # Preparing Graph - Part 2
 
@@ -6122,7 +6027,7 @@ density_acclimation_fluctuation_CVR_2 <- acclimation_fluctuation_table_2 %>% mut
                                          geom_label(aes(label=c(paste(format(round(mean(exp(Acclimation_Fluctuation_Model_CVR_Estimates["Stepwise", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                     x = -0.75, y = (seq(1, dim(acclimation_fluctuation_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_acclimation_fluctuation_CVR_2 #(400x160)
+density_acclimation_fluctuation_CVR_2
 
 ##### Acclimation Subset Model - Trait Meta-Regression - CVR #####
 Acclimation_Trait_Exploration <- Acclimation_Subset_Data %>% select("Trait_Category") %>% table() %>% data.frame()
@@ -6146,8 +6051,8 @@ Acclimation_Trait_A_cor <- as.matrix(Acclimation_Trait_A_cor)
 
 Acclimation_Trait_VCV_InCVR <- make_VCV_matrix(Acclimation_Trait_Data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
-run <- FALSE
-system.time( #  1ish minutes
+run <- TRUE
+system.time(
   if(run){
     Acclimation_Trait_Model_CVR <- metafor::rma.mv(InCVR, V = Acclimation_Trait_VCV_InCVR, test = "t", dfs = "contain",
                                                    mods = ~ Trait_Category - 1,
@@ -6155,9 +6060,9 @@ system.time( #  1ish minutes
                                                                  ~1|Shared_Animal_Number, ~1|Measurement), 
                                                    R = list(phylo=Acclimation_Trait_A_cor), data = Acclimation_Trait_Data, method = "REML", sparse = TRUE, 
                                                    control=list(rel.tol=1e-9))
-    saveRDS(Acclimation_Trait_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Acclimation_Trait_Model_CVR.rds")
+    saveRDS(Acclimation_Trait_Model_CVR, "./Acclimation_Trait_Model_CVR.rds")
   } else {
-            Acclimation_Trait_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Acclimation_Trait_Model_CVR.rds")})
+            Acclimation_Trait_Model_CVR <- readRDS("./Acclimation_Trait_Model_CVR.rds")})
 
 Acclimation_Trait_Model_CVR_rob <- robust(Acclimation_Trait_Model_CVR, cluster = Acclimation_Trait_Data$Study_ID, adjust = TRUE)
 
@@ -6257,7 +6162,7 @@ density_acclimation_trait_CVR <- acclimation_trait_table %>% mutate(name = fct_r
                                                         paste(format(round(mean(exp(Acclimation_Trait_Model_CVR_Estimates["Behavioural", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                             x = -0.75, y = (seq(1, dim(acclimation_trait_table)[1], 1)+0.4)), size = 3.5)
 
-density_acclimation_trait_CVR #(400x400)
+density_acclimation_trait_CVR
 
 # Preparing Graph - Part 1
 
@@ -6334,7 +6239,7 @@ density_acclimation_trait_CVR_1 <- acclimation_trait_table_1 %>% mutate(name = f
                                                           paste(format(round(mean(exp(Acclimation_Trait_Model_CVR_Estimates["Behavioural", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                               x = -0.75, y = (seq(1, dim(acclimation_trait_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_acclimation_trait_CVR_1 #(400x240)
+density_acclimation_trait_CVR_1
 
 # Preparing Graph - Part 2
 
@@ -6409,7 +6314,7 @@ density_acclimation_trait_CVR_2 <- acclimation_trait_table_2 %>% mutate(name = f
                                                           paste(format(round(mean(exp(Acclimation_Trait_Model_CVR_Estimates["Life-History Traits", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                               x = -0.75, y = (seq(1, dim(acclimation_trait_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_acclimation_trait_CVR_2 #(400x240)
+density_acclimation_trait_CVR_2
 
 ##### Acclimation Subset Model - Life-History Stage Meta-Regression - CVR #####
 Acclimation_Stage_Exploration <- Acclimation_Subset_Data %>% select("Acclimation_Life.History_Stage_Category") %>% table() %>% data.frame()
@@ -6433,8 +6338,8 @@ Acclimation_Stage_A_cor <- as.matrix(Acclimation_Stage_A_cor)
 
 Acclimation_Stage_VCV_InCVR <- make_VCV_matrix(Acclimation_Stage_Data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
-run <- FALSE
-system.time( #  1ish minutes
+run <- TRUE
+system.time(
   if(run){
     Acclimation_Stage_Model_CVR <- metafor::rma.mv(InCVR, V = Acclimation_Stage_VCV_InCVR, test = "t", dfs = "contain",
                                                    mods = ~ Acclimation_Life.History_Stage_Category - 1,
@@ -6442,9 +6347,9 @@ system.time( #  1ish minutes
                                                                  ~1|Shared_Animal_Number, ~1|Measurement), 
                                                    R = list(phylo=Acclimation_Stage_A_cor), data = Acclimation_Stage_Data, method = "REML", sparse = TRUE, 
                                                    control=list(rel.tol=1e-9))
-    saveRDS(Acclimation_Stage_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Acclimation_Stage_Model_CVR.rds")
+    saveRDS(Acclimation_Stage_Model_CVR, "./Acclimation_Stage_Model_CVR.rds")
   } else {
-            Acclimation_Stage_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Acclimation_Stage_Model_CVR.rds")})
+            Acclimation_Stage_Model_CVR <- readRDS("./Acclimation_Stage_Model_CVR.rds")})
 
 Acclimation_Stage_Model_CVR_rob <- robust(Acclimation_Stage_Model_CVR, cluster = Acclimation_Stage_Data$Study_ID, adjust = TRUE)
 
@@ -6544,7 +6449,7 @@ density_acclimation_stage_CVR <- acclimation_stage_table %>% mutate(name = fct_r
                                                         paste(format(round(mean(exp(Acclimation_Stage_Model_CVR_Estimates["Adult", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                             x = -0.75, y = (seq(1, dim(acclimation_stage_table)[1], 1)+0.4)), size = 3.5)
 
-density_acclimation_stage_CVR #(400x400)
+density_acclimation_stage_CVR
 
 # Preparing Graph - Part 1
 
@@ -6619,7 +6524,7 @@ density_acclimation_stage_CVR_1 <- acclimation_stage_table_1 %>% mutate(name = f
                                                           paste(format(round(mean(exp(Acclimation_Stage_Model_CVR_Estimates["Adult", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                               x = -0.75, y = (seq(1, dim(acclimation_stage_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_acclimation_stage_CVR_1 #(400x240)
+density_acclimation_stage_CVR_1
 
 # Preparing Graph - Part 2
 
@@ -6696,7 +6601,7 @@ density_acclimation_stage_CVR_2 <- acclimation_stage_table_2 %>% mutate(name = f
                                                           paste(format(round(mean(exp(Acclimation_Stage_Model_CVR_Estimates["Juvenile", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                               x = -0.75, y = (seq(1, dim(acclimation_stage_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_acclimation_stage_CVR_2 #(400x240)
+density_acclimation_stage_CVR_2
 
 ##### Acclimation Subset Model - Class Meta-Regression - CVR #####
 Acclimation_Class_Exploration <- Acclimation_Subset_Data %>% select("Class") %>% table() %>% data.frame()
@@ -6722,8 +6627,8 @@ Acclimation_Class_A_cor <- as.matrix(Acclimation_Class_A_cor)
 
 Acclimation_Class_VCV_InCVR <- make_VCV_matrix(Acclimation_Class_Data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
-run <- FALSE
-system.time( #  1ish minutes
+run <- TRUE
+system.time(
   if(run){
     Acclimation_Class_Model_CVR <- metafor::rma.mv(InCVR, V = Acclimation_Class_VCV_InCVR, test = "t", dfs = "contain",
                                                    mods = ~ Class - 1,
@@ -6731,9 +6636,9 @@ system.time( #  1ish minutes
                                                                  ~1|Shared_Animal_Number, ~1|Measurement), 
                                                    R = list(phylo=Acclimation_Class_A_cor), data = Acclimation_Class_Data, method = "REML", sparse = TRUE, 
                                                    control=list(rel.tol=1e-9))
-    saveRDS(Acclimation_Class_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Acclimation_Class_Model_CVR.rds")
+    saveRDS(Acclimation_Class_Model_CVR, "./Acclimation_Class_Model_CVR.rds")
   } else {
-            Acclimation_Class_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Acclimation_Class_Model_CVR.rds")})
+            Acclimation_Class_Model_CVR <- readRDS("./Acclimation_Class_Model_CVR.rds")})
 
 Acclimation_Class_Model_CVR_rob <- robust(Acclimation_Class_Model_CVR, cluster = Acclimation_Class_Data$Study_ID, adjust = TRUE)
 
@@ -6853,7 +6758,7 @@ density_acclimation_class_CVR <- acclimation_class_table %>% mutate(name = fct_r
                                                         paste(format(round(mean(exp(Acclimation_Class_Model_CVR_Estimates["Actinopteri", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                             x = -0.75, y = (seq(1, dim(acclimation_class_table)[1], 1)+0.4)), size = 3.5)
 
-density_acclimation_class_CVR #(400x560)
+density_acclimation_class_CVR
 
 # Preparing Graph - Part 1
 
@@ -6937,7 +6842,7 @@ density_acclimation_class_CVR_1 <- acclimation_class_table_1 %>% mutate(name = f
                                                           paste(format(round(mean(exp(Acclimation_Class_Model_CVR_Estimates["Actinopteri", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                               x = -0.75, y = (seq(1, dim(acclimation_class_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_acclimation_class_CVR_1 #(400x320)
+density_acclimation_class_CVR_1
 
 # Preparing Graph - Part 2
 
@@ -7023,7 +6928,7 @@ density_acclimation_class_CVR_2 <- acclimation_class_table_2 %>% mutate(name = f
                                                           paste(format(round(mean(exp(Acclimation_Class_Model_CVR_Estimates["Holothuroidea", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                               x = -0.75, y = (seq(1, dim(acclimation_class_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_acclimation_class_CVR_2 #(400x320)
+density_acclimation_class_CVR_2
 
 ##### Acclimation Subset Model - Specific Trait Meta-Regression - CVR #####
 Acclimation_Specific_Trait_Exploration <- Acclimation_Subset_Data %>% select("Measurement") %>% table() %>% data.frame()
@@ -7054,8 +6959,8 @@ Acclimation_Specific_Trait_A_cor <- as.matrix(Acclimation_Specific_Trait_A_cor)
 
 Acclimation_Specific_Trait_VCV_InCVR <- make_VCV_matrix(Acclimation_Specific_Trait_Data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
-run <- FALSE
-system.time( #  1ish minutes
+run <- TRUE
+system.time(
   if(run){
     Acclimation_Specific_Trait_Model_CVR <- metafor::rma.mv(InCVR, V = Acclimation_Specific_Trait_VCV_InCVR, test = "t", dfs = "contain",
                                                             mods = ~ Measurement - 1,
@@ -7063,9 +6968,9 @@ system.time( #  1ish minutes
                                                                           ~1|Shared_Animal_Number), 
                                                             R = list(phylo=Acclimation_Specific_Trait_A_cor), data = Acclimation_Specific_Trait_Data, method = "REML", sparse = TRUE, 
                                                             control=list(rel.tol=1e-9))
-    saveRDS(Acclimation_Specific_Trait_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Acclimation_Specific_Trait_Model_CVR.rds")
+    saveRDS(Acclimation_Specific_Trait_Model_CVR, "./Acclimation_Specific_Trait_Model_CVR.rds")
   } else {
-            Acclimation_Specific_Trait_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Acclimation_Specific_Trait_Model_CVR.rds")})
+            Acclimation_Specific_Trait_Model_CVR <- readRDS("./Acclimation_Specific_Trait_Model_CVR.rds")})
 
 Acclimation_Specific_Trait_Model_CVR_rob <- robust(Acclimation_Specific_Trait_Model_CVR, cluster = Acclimation_Specific_Trait_Data$Study_ID, adjust = TRUE)
 
@@ -7195,7 +7100,7 @@ density_acclimation_specific_trait_CVR <- acclimation_specific_trait_table %>% m
                                                                  paste(format(round(mean(exp(Acclimation_Specific_Trait_Model_CVR_Estimates["Apparent Digestability Coefficient", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                      x = -0.75, y = (seq(1, dim(acclimation_specific_trait_table)[1], 1)+0.4)), size = 3.5)
 
-density_acclimation_specific_trait_CVR #(400x640)
+density_acclimation_specific_trait_CVR
 
 # Preparing Graph - Part 1
 
@@ -7289,7 +7194,7 @@ density_acclimation_specific_trait_CVR_1 <- acclimation_specific_trait_table_1 %
                                                                    paste(format(round(mean(exp(Acclimation_Specific_Trait_Model_CVR_Estimates["Apparent Digestability Coefficient", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                        x = -0.75, y = (seq(1, dim(acclimation_specific_trait_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_acclimation_specific_trait_CVR_1 #(400x400)
+density_acclimation_specific_trait_CVR_1
 
 # Preparing Graph - Part 2
 
@@ -7375,29 +7280,7 @@ density_acclimation_specific_trait_CVR_2 <- acclimation_specific_trait_table_2 %
                                                                    paste(format(round(mean(exp(Acclimation_Specific_Trait_Model_CVR_Estimates["Immune Defense", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                       x = -0.75, y = (seq(1, dim(acclimation_specific_trait_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_acclimation_specific_trait_CVR_2 #(400x320)
-
-##### Summary of Acclimation Plots #####
-
-Acclimation_Layout <- rbind(c(1, 3), 
-                            c(1, 3),
-                            c(1, 3),
-                            c(1, 3),
-                            c(1, 3),
-                            c(1, 3),
-                            c(1, 4),
-                            c(1, 4),
-                            c(2, 4),
-                            c(2, 5),
-                            c(2, 5),
-                            c(2, 5),
-                            c(2, 5))
-
-Acclimation_Combined_CVR <- grid.arrange(density_acclimation_specific_trait_CVR, density_acclimation_trait_CVR, density_acclimation_class_CVR, 
-                                         density_acclimation_fluctuation_CVR, density_acclimation_stage_CVR, 
-                                         layout_matrix = Acclimation_Layout)
-
-Acclimation_Combined_CVR #(850 x 900 - does not include amplitude plot)
+density_acclimation_specific_trait_CVR_2
 
 ##### Developmental Subset Model - CVR #####
 Developmental_Subset_Data <- Individual_Subset_Data %>% filter(Plasticity_Mechanism == "Developmental Plasticity")
@@ -7409,17 +7292,17 @@ Developmental_A_cor <- as.matrix(Developmental_A_cor)
 
 Developmental_VCV_InCVR <- make_VCV_matrix(Developmental_Subset_Data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
-run <- FALSE
-system.time( #  12ish minutes
+run <- TRUE
+system.time(
   if(run){
     Developmental_Model_CVR <- metafor::rma.mv(InCVR ~ 1, V = Developmental_VCV_InCVR, test = "t", dfs = "contain",
                                                random = list(~1|phylo, ~1|Study_ID, ~1|obs, ~1|Scientific_Name, 
                                                              ~1|Shared_Animal_Number, ~1|Measurement), 
                                                R = list(phylo=Developmental_A_cor), data = Developmental_Subset_Data, method = "REML", sparse = TRUE, 
                                                control=list(rel.tol=1e-9))
-    saveRDS(Developmental_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Developmental_Model_CVR.rds")
+    saveRDS(Developmental_Model_CVR, "./Developmental_Model_CVR.rds")
   } else {
-            Developmental_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Developmental_Model_CVR.rds")})
+            Developmental_Model_CVR <- readRDS("./Developmental_Model_CVR.rds")})
 
 Developmental_Model_CVR_rob <- robust(Developmental_Model_CVR, cluster = Developmental_Subset_Data$Study_ID, adjust = TRUE)
 
@@ -7429,8 +7312,8 @@ Developmental_Model_CVR_Estimates <- data.frame(estimate = Developmental_Model_C
 Developmental_Model_CVR_i2 <- data.frame(round(orchaRd::i2_ml(Developmental_Model_CVR), 2))
 
 #### Developmental Subset Model - Fluctuation Amplitude Meta-Regression - CVR ####
-run <- FALSE
-system.time( #  4ish minutes
+run <- TRUE
+system.time(
   if(run){
     Developmental_Amplitude_Model_CVR <- metafor::rma.mv(InCVR, V = Developmental_VCV_InCVR, test = "t", dfs = "contain",
                                                          mods = ~ T2_Magnitude - 1,
@@ -7438,9 +7321,9 @@ system.time( #  4ish minutes
                                                                        ~1|Shared_Animal_Number, ~1|Measurement), 
                                                          R = list(phylo=Developmental_A_cor), data = Developmental_Subset_Data, method = "REML", sparse = TRUE, 
                                                          control=list(rel.tol=1e-9))
-    saveRDS(Developmental_Amplitude_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Developmental_Amplitude_Model_CVR.rds")
+    saveRDS(Developmental_Amplitude_Model_CVR, "./Developmental_Amplitude_Model_CVR.rds")
   } else {
-            Developmental_Amplitude_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Developmental_Amplitude_Model_CVR.rds")})
+            Developmental_Amplitude_Model_CVR <- readRDS("./Developmental_Amplitude_Model_CVR.rds")})
 
 Developmental_Amplitude_Model_CVR_rob <- robust(Developmental_Amplitude_Model_CVR, cluster = Developmental_Subset_Data$Study_ID, adjust = TRUE)
 
@@ -7477,7 +7360,7 @@ Developmental_Amplitude_Plot_CVR <- ggplot(Developmental_Plot_Data, aes(x = T2_M
                                     coord_cartesian(xlim = c(0, 30), 
                                                     ylim = c(-2.5, 2.5))
 
-Developmental_Amplitude_Plot_CVR #(400x400)
+Developmental_Amplitude_Plot_CVR
 
 #### Developmental Subset Model - Type of Fluctuation Meta-Regression - CVR ####
 Developmental_Fluctuation_Data <- Developmental_Subset_Data %>% filter(!is.na(Fluctuation_Category))
@@ -7500,8 +7383,8 @@ Developmental_Fluctuation_A_cor <- as.matrix(Developmental_Fluctuation_A_cor)
 
 Developmental_Fluctuation_VCV_InCVR <- make_VCV_matrix(Developmental_Fluctuation_Data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
-run <- FALSE
-system.time( #  11ish minutes
+run <- TRUE
+system.time(
   if(run){
     Developmental_Fluctuation_Model_CVR <- metafor::rma.mv(InCVR, V = Developmental_Fluctuation_VCV_InCVR, test = "t", dfs = "contain",
                                                            mods = ~ Fluctuation_Category - 1,
@@ -7509,9 +7392,9 @@ system.time( #  11ish minutes
                                                                          ~1|Shared_Animal_Number, ~1|Measurement), 
                                                            R = list(phylo=Developmental_Fluctuation_A_cor), data = Developmental_Fluctuation_Data, method = "REML", sparse = TRUE, 
                                                            control=list(rel.tol=1e-9))
-    saveRDS(Developmental_Fluctuation_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Developmental_Fluctuation_Model_CVR.rds")
+    saveRDS(Developmental_Fluctuation_Model_CVR, "./Developmental_Fluctuation_Model_CVR.rds")
   } else {
-            Developmental_Fluctuation_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Developmental_Fluctuation_Model_CVR.rds")})
+            Developmental_Fluctuation_Model_CVR <- readRDS("./Developmental_Fluctuation_Model_CVR.rds")})
 
 Developmental_Fluctuation_Model_CVR_rob <- robust(Developmental_Fluctuation_Model_CVR, cluster = Developmental_Fluctuation_Data$Study_ID, adjust = TRUE)
 
@@ -7614,7 +7497,7 @@ density_developmental_fluctuation_CVR <- developmental_fluctuation_table %>% mut
                                                                 paste(format(round(mean(exp(Developmental_Fluctuation_Model_CVR_Estimates["Sinusoidal (Sine Curve)", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                     x = -0.75, y = (seq(1, dim(developmental_fluctuation_table)[1], 1)+0.4)), size = 3.5)
 
-density_developmental_fluctuation_CVR #(400x400)
+density_developmental_fluctuation_CVR
 
 # Preparing Graph - Part 1
 
@@ -7689,7 +7572,7 @@ density_developmental_fluctuation_CVR_1 <- developmental_fluctuation_table_1 %>%
                                                                   paste(format(round(mean(exp(Developmental_Fluctuation_Model_CVR_Estimates["Sinusoidal (Sine Curve)", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                       x = -0.75, y = (seq(1, dim(developmental_fluctuation_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_developmental_fluctuation_CVR_1 #(400x240)
+density_developmental_fluctuation_CVR_1
 
 # Preparing Graph - Part 2
 
@@ -7764,7 +7647,7 @@ density_developmental_fluctuation_CVR_2 <- developmental_fluctuation_table_2 %>%
                                                                   paste(format(round(mean(exp(Developmental_Fluctuation_Model_CVR_Estimates["Stepwise", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                       x = -0.75, y = (seq(1, dim(developmental_fluctuation_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_developmental_fluctuation_CVR_2 #(400x240)
+density_developmental_fluctuation_CVR_2
 
 ##### Developmental Subset Model - Trait Meta-Regression - CVR #####
 Developmental_Trait_Exploration <- Developmental_Subset_Data %>% select("Trait_Category") %>% table() %>% data.frame()
@@ -7778,8 +7661,8 @@ Developmental_Trait_Study_Count <- Developmental_Subset_Data %>% select("Study_I
                                    filter(`Freq` != 0) %>% select("Trait_Category") %>% table() %>% data.frame()
 rownames(Developmental_Trait_Study_Count) <- Developmental_Trait_Study_Count$Trait_Category
 
-run <- FALSE
-system.time( #  12ish minutes
+run <- TRUE
+system.time(
   if(run){
     Developmental_Trait_Model_CVR <- metafor::rma.mv(InCVR, V = Developmental_VCV_InCVR, test = "t", dfs = "contain",
                                                      mods = ~ Trait_Category - 1,
@@ -7787,9 +7670,9 @@ system.time( #  12ish minutes
                                                                    ~1|Shared_Animal_Number, ~1|Measurement), 
                                                      R = list(phylo=Developmental_A_cor), data = Developmental_Subset_Data, method = "REML", sparse = TRUE, 
                                                      control=list(rel.tol=1e-9))
-    saveRDS(Developmental_Trait_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Developmental_Trait_Model_CVR.rds")
+    saveRDS(Developmental_Trait_Model_CVR, "./Developmental_Trait_Model_CVR.rds")
   } else {
-            Developmental_Trait_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Developmental_Trait_Model_CVR.rds")})
+            Developmental_Trait_Model_CVR <- readRDS("./Developmental_Trait_Model_CVR.rds")})
 
 Developmental_Trait_Model_CVR_rob <- robust(Developmental_Trait_Model_CVR, cluster = Developmental_Subset_Data$Study_ID, adjust = TRUE)
 
@@ -7909,7 +7792,7 @@ density_developmental_trait_CVR <- developmental_trait_table %>% mutate(name = f
                                                           paste(format(round(mean(exp(Developmental_Trait_Model_CVR_Estimates["Behavioural", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                               x = -0.75, y = (seq(1, dim(developmental_trait_table)[1], 1)+0.4)), size = 3.5)
 
-density_developmental_trait_CVR #(400x560)
+density_developmental_trait_CVR
 
 # Preparing Graph - Part 1
 
@@ -7993,7 +7876,7 @@ density_developmental_trait_CVR_1 <- developmental_trait_table_1 %>% mutate(name
                                                             paste(format(round(mean(exp(Developmental_Trait_Model_CVR_Estimates["Behavioural", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                 x = -0.75, y = (seq(1, dim(developmental_trait_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_developmental_trait_CVR_1 #(400x320)
+density_developmental_trait_CVR_1
 
 # Preparing Graph - Part 2
 
@@ -8077,7 +7960,7 @@ density_developmental_trait_CVR_2 <- developmental_trait_table_2 %>% mutate(name
                                                             paste(format(round(mean(exp(Developmental_Trait_Model_CVR_Estimates["Life-History Traits", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                    x = -0.75, y = (seq(1, dim(developmental_trait_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_developmental_trait_CVR_2 #(400x320)
+density_developmental_trait_CVR_2
 
 ##### Developmental Subset Model - Exposure Time Meta-Regression - CVR #####
 Developmental_Exposure_Exploration <- Developmental_Subset_Data %>% select("Developmental_Exposure_Time_Category") %>% table() %>% data.frame()
@@ -8091,8 +7974,8 @@ Developmental_Exposure_Study_Count <- Developmental_Subset_Data %>% select("Stud
                                       filter(`Freq` != 0) %>% select("Developmental_Exposure_Time_Category") %>% table() %>% data.frame()
 rownames(Developmental_Exposure_Study_Count) <- Developmental_Exposure_Study_Count$Developmental_Exposure_Time_Category
 
-run <- FALSE
-system.time( #  13ish minutes
+run <- TRUE
+system.time(
   if(run){
     Developmental_Exposure_Model_CVR <- metafor::rma.mv(InCVR, V = Developmental_VCV_InCVR, test = "t", dfs = "contain",
                                                         mods = ~ Developmental_Exposure_Time_Category - 1,
@@ -8100,9 +7983,9 @@ system.time( #  13ish minutes
                                                                       ~1|Shared_Animal_Number, ~1|Measurement), 
                                                         R = list(phylo=Developmental_A_cor), data = Developmental_Subset_Data, method = "REML", sparse = TRUE, 
                                                         control=list(rel.tol=1e-9))
-    saveRDS(Developmental_Exposure_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Developmental_Exposure_Model_CVR.rds")
+    saveRDS(Developmental_Exposure_Model_CVR, "./Developmental_Exposure_Model_CVR.rds")
   } else {
-            Developmental_Exposure_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Developmental_Exposure_Model_CVR.rds")})
+            Developmental_Exposure_Model_CVR <- readRDS("./Developmental_Exposure_Model_CVR.rds")})
 
 Developmental_Exposure_Model_CVR_rob <- robust(Developmental_Exposure_Model_CVR, cluster = Developmental_Subset_Data$Study_ID, adjust = TRUE)
 
@@ -8203,8 +8086,8 @@ density_developmental_exposure_CVR <- developmental_exposure_table %>% mutate(na
                                                              paste(format(round(mean(exp(Developmental_Exposure_Model_CVR_Estimates["Embryo", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                  x = -0.75, y = (seq(1, dim(developmental_exposure_table)[1], 1)+0.4)), size = 3.5)
 
-density_developmental_exposure_CVR #(400x400)
-
+density_developmental_exposure_CVR
+                                                       
 # Preparing Graph - Part 1
 
 developmental_exposure_rnames_1 <- c("Embryo", "Juvenile")
@@ -8278,7 +8161,7 @@ density_developmental_exposure_CVR_1 <- developmental_exposure_table_1 %>% mutat
                                                                paste(format(round(mean(exp(Developmental_Exposure_Model_CVR_Estimates["Embryo", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                    x = -0.75, y = (seq(1, dim(developmental_exposure_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_developmental_exposure_CVR_1 #(400x240)
+density_developmental_exposure_CVR_1
 
 # Preparing Graph - Part 2
 
@@ -8353,7 +8236,7 @@ density_developmental_exposure_CVR_2 <- developmental_exposure_table_2 %>% mutat
                                                                paste(format(round(mean(exp(Developmental_Exposure_Model_CVR_Estimates["Larvae", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                    x = -0.75, y = (seq(1, dim(developmental_exposure_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_developmental_exposure_CVR_2 #(400x240)
+density_developmental_exposure_CVR_2
 
 ##### Developmental Subset Model - Class Meta-Regression - CVR #####
 Developmental_Class_Exploration <- Developmental_Subset_Data %>% select("Class") %>% table() %>% data.frame()
@@ -8378,8 +8261,8 @@ Developmental_Class_A_cor <- as.matrix(Developmental_Class_A_cor)
 
 Developmental_Class_VCV_InCVR <- make_VCV_matrix(Developmental_Class_Data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
-run <- FALSE
-system.time( #  6ish minutes
+run <- TRUE
+system.time(
   if(run){
     Developmental_Class_Model_CVR <- metafor::rma.mv(InCVR, V = Developmental_Class_VCV_InCVR, test = "t", dfs = "contain",
                                                      mods = ~ Class - 1,
@@ -8387,9 +8270,9 @@ system.time( #  6ish minutes
                                                                    ~1|Shared_Animal_Number, ~1|Measurement), 
                                                      R = list(phylo=Developmental_Class_A_cor), data = Developmental_Class_Data, method = "REML", sparse = TRUE, 
                                                      control=list(rel.tol=1e-9))
-    saveRDS(Developmental_Class_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Developmental_Class_Model_CVR.rds")
+    saveRDS(Developmental_Class_Model_CVR, "./Developmental_Class_Model_CVR.rds")
   } else {
-            Developmental_Class_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Developmental_Class_Model_CVR.rds")})
+            Developmental_Class_Model_CVR <- readRDS("./Developmental_Class_Model_CVR.rds")})
 
 Developmental_Class_Model_CVR_rob <- robust(Developmental_Class_Model_CVR, cluster = Developmental_Class_Data$Study_ID, adjust = TRUE)
 
@@ -8499,7 +8382,7 @@ density_developmental_class_CVR <- developmental_class_table %>% mutate(name = f
                                                           paste(format(round(mean(exp(Developmental_Class_Model_CVR_Estimates["Actinopteri", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                               x = -0.75, y = (seq(1, dim(developmental_class_table)[1], 1)+0.4)), size = 3.5)
 
-density_developmental_class_CVR #(400x480)
+density_developmental_class_CVR
 
 # Preparing Graph - Part 1
 
@@ -8583,7 +8466,7 @@ density_developmental_class_CVR_1 <- developmental_class_table_1 %>% mutate(name
                                                             paste(format(round(mean(exp(Developmental_Class_Model_CVR_Estimates["Actinopteri", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                 x = -0.75, y = (seq(1, dim(developmental_class_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_developmental_class_CVR_1 #(400x320)
+density_developmental_class_CVR_1
 
 # Preparing Graph - Part 2
 
@@ -8658,7 +8541,7 @@ density_developmental_class_CVR_2 <- developmental_class_table_2 %>% mutate(name
                                                             paste(format(round(mean(exp(Developmental_Class_Model_CVR_Estimates["Branchiopoda", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                 x = -0.75, y = (seq(1, dim(developmental_class_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_developmental_class_CVR_2 #(400x240)
+density_developmental_class_CVR_2
 
 ##### Developmental Subset Model - Specific Trait Meta-Regression - CVR #####
 Developmental_Specific_Trait_Exploration <- Developmental_Subset_Data %>% select("Measurement") %>% table() %>% data.frame()
@@ -8691,8 +8574,8 @@ Developmental_Specific_Trait_A_cor <- as.matrix(Developmental_Specific_Trait_A_c
 
 Developmental_Specific_Trait_VCV_InCVR <- make_VCV_matrix(Developmental_Specific_Trait_Data, V = "v_InCVR", cluster = "Shared_Control_Number")
 
-run <- FALSE
-system.time( #  5ish minutes
+run <- TRUE
+system.time(
   if(run){
     Developmental_Specific_Trait_Model_CVR <- metafor::rma.mv(InCVR, V = Developmental_Specific_Trait_VCV_InCVR, test = "t", dfs = "contain",
                                                               mods = ~ Measurement - 1,
@@ -8700,9 +8583,9 @@ system.time( #  5ish minutes
                                                                             ~1|Shared_Animal_Number), 
                                                               R = list(phylo=Developmental_Specific_Trait_A_cor), data = Developmental_Specific_Trait_Data, method = "REML", sparse = TRUE, 
                                                               control=list(rel.tol=1e-9))
-    saveRDS(Developmental_Specific_Trait_Model_CVR, "./3.Data_Analysis/2.Outputs/Models/Developmental_Specific_Trait_Model_CVR.rds")
+    saveRDS(Developmental_Specific_Trait_Model_CVR, "./Developmental_Specific_Trait_Model_CVR.rds")
   } else {
-            Developmental_Specific_Trait_Model_CVR <- readRDS("./3.Data_Analysis/2.Outputs/Models/Developmental_Specific_Trait_Model_CVR.rds")})
+            Developmental_Specific_Trait_Model_CVR <- readRDS("./Developmental_Specific_Trait_Model_CVR.rds")})
 
 Developmental_Specific_Trait_Model_CVR_rob <- robust(Developmental_Specific_Trait_Model_CVR, cluster = Developmental_Specific_Trait_Data$Study_ID, adjust = TRUE)
 
@@ -8852,7 +8735,7 @@ density_developmental_specific_trait_CVR <- developmental_specific_trait_table %
                                                                    paste(format(round(mean(exp(Developmental_Specific_Trait_Model_CVR_Estimates["Development Time", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                        x = -2.5, y = (seq(1, dim(developmental_specific_trait_table)[1], 1)+0.4)), size = 3.5)
 
-density_developmental_specific_trait_CVR #(400x800)
+density_developmental_specific_trait_CVR
 
 # Preparing Graph - Part 1
 
@@ -8954,7 +8837,7 @@ density_developmental_specific_trait_CVR_1 <- developmental_specific_trait_table
                                                                      paste(format(round(mean(exp(Developmental_Specific_Trait_Model_CVR_Estimates["Development Time", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                          x = -2.5, y = (seq(1, dim(developmental_specific_trait_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_developmental_specific_trait_CVR_1 #(400x480)
+density_developmental_specific_trait_CVR_1
 
 # Preparing Graph - Part 2
 
@@ -9051,30 +8934,7 @@ density_developmental_specific_trait_CVR_2 <- developmental_specific_trait_table
                                                                      paste(format(round(mean(exp(Developmental_Specific_Trait_Model_CVR_Estimates["Locomotor Performance", "estimate"])-1)*100, 2), nsmall = 2), "%")), 
                                                          x = -2.5, y = (seq(1, dim(developmental_specific_trait_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_developmental_specific_trait_CVR_2 #(400x400)
-
-##### Summary of Developmental Plots #####
-
-Developmental_Layout <- rbind(c(1, 3), 
-                              c(1, 3),
-                              c(1, 3),
-                              c(1, 3),
-                              c(1, 3),
-                              c(1, 3),
-                              c(1, 4),
-                              c(1, 4),
-                              c(1, 4),
-                              c(2, 4),
-                              c(2, 5),
-                              c(2, 5),
-                              c(2, 5),
-                              c(2, 5))
-
-Developmental_Combined_CVR <- grid.arrange(density_developmental_specific_trait_CVR, density_developmental_class_CVR, density_developmental_trait_CVR, 
-                                           density_developmental_fluctuation_CVR, density_developmental_exposure_CVR, 
-                                           layout_matrix = Developmental_Layout)
-
-Developmental_Combined_CVR #(850 x 1500 - does not include amplitude plot)
+density_developmental_specific_trait_CVR_2
 
 ##### Meta-analytic Models (Intercept Only) - Subset Graph #####
 
@@ -9215,7 +9075,7 @@ density_intercept_CVR <- intercept_table %>% mutate(name = fct_relevel(name, Int
                                                 paste(format(round(mean(exp(Overall_Model_CVR_Estimates$estimate)-1)*100, 2), nsmall = 2), "%")), 
                                     x = -0.75, y = (seq(1, dim(intercept_table)[1], 1)+0.4)), size = 3.5)
 
-density_intercept_CVR #(400x400)
+density_intercept_CVR
 
 # Preparing Data - Part 1
 
@@ -9320,7 +9180,7 @@ density_intercept_CVR_1 <- intercept_table_1 %>% mutate(name = fct_relevel(name,
                                                   paste(format(round(mean(exp(Overall_Model_CVR_Estimates$estimate)-1)*100, 2), nsmall = 2), "%")), 
                                       x = -0.75, y = (seq(1, dim(intercept_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_intercept_CVR_1 #(400x400) 
+density_intercept_CVR_1
 
 # Preparing Data - Part 2
 
@@ -9412,13 +9272,13 @@ density_intercept_CVR_2 <- intercept_table_2 %>% mutate(name = fct_relevel(name,
                                                   paste(format(round(mean(exp(Terrestrial_Model_CVR_Estimates$estimate)-1)*100, 2), nsmall = 2), "%")), 
                                           x = -0.75, y = (seq(1, dim(intercept_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_intercept_CVR_2 #(400x320)
+density_intercept_CVR_2
 
 ##### Supplementary Material Tables #####
 
 # Consistency Changes - Studies, Species and Effect Sizes Counts
 
-Pre_Data <- read.csv("./3.Data_Analysis/2.Outputs/Data/Pre_Data.csv")
+Pre_Data <- read.csv("./Pre_Data.csv")
 
 Individual_Pre_Data <- Pre_Data %>% filter(Trait_Category != "Population")
 Developmental_Pre_Data <- Individual_Pre_Data %>% filter(Plasticity_Mechanism == "Developmental Plasticity")
@@ -9441,7 +9301,7 @@ Developmental_Exposure_Time_Final_Counts <- Developmental_Exposure_Time_Studies 
                                             left_join(Developmental_Exposure_Time_Species, by = "Developmental_Exposure_Time") %>% 
                                             left_join(Developmental_Exposure_Time_Effects, by = "Developmental_Exposure_Time")
 
-write.csv(Developmental_Exposure_Time_Final_Counts, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Developmental_Exposure_Time_Final_Counts.csv", row.names = FALSE)
+write.csv(Developmental_Exposure_Time_Final_Counts, file = "./Developmental_Exposure_Time_Final_Counts.csv", row.names = FALSE)
 
 Acclimation_Pre_Data <- Individual_Pre_Data %>% filter(Plasticity_Mechanism == "Acclimation")
 
@@ -9463,7 +9323,7 @@ Acclimation_LH_Stage_Final_Counts <- Acclimation_LH_Stage_Studies %>%
                                      left_join(Acclimation_LH_Stage_Species, by = "Acclimation_Life.History_Stage") %>% 
                                      left_join(Acclimation_LH_Stage_Effects, by = "Acclimation_Life.History_Stage")
 
-write.csv(Acclimation_LH_Stage_Final_Counts, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Acclimation_LH_Stage_Final_Counts.csv", row.names = FALSE)
+write.csv(Acclimation_LH_Stage_Final_Counts, file = "./Acclimation_LH_Stage_Final_Counts.csv", row.names = FALSE)
 
 Measurement_Studies <- Pre_Data %>% select("Study_ID", "Measurement") %>% table() %>% data.frame() %>% 
                        filter(`Freq` != 0) %>% select("Measurement") %>% table() %>% data.frame()
@@ -9483,7 +9343,7 @@ Measurement_Final_Counts <- Measurement_Studies %>%
                             left_join(Measurement_Species, by = "Measurement") %>% 
                             left_join(Measurement_Effects, by = "Measurement")
 
-write.csv(Measurement_Final_Counts, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Measurement_Final_Counts.csv", row.names = FALSE)
+write.csv(Measurement_Final_Counts, file = "./Measurement_Final_Counts.csv", row.names = FALSE)
 
 # Category - Studies, Species and Effect Sizes
 
@@ -9505,7 +9365,7 @@ Developmental_Exposure_Time_Category_Final_Counts <- Developmental_Exposure_Time
                                                      left_join(Developmental_Exposure_Time_Category_Species, by = "Developmental_Exposure_Time_Category") %>% 
                                                      left_join(Developmental_Exposure_Time_Category_Effects, by = "Developmental_Exposure_Time_Category")
 
-write.csv(Developmental_Exposure_Time_Category_Final_Counts, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Developmental_Exposure_Time_Category_Final_Counts.csv", row.names = FALSE)
+write.csv(Developmental_Exposure_Time_Category_Final_Counts, file = "./Developmental_Exposure_Time_Category_Final_Counts.csv", row.names = FALSE)
 
 Acclimation_LH_Stage_Category_Studies <- Acclimation_Subset_Data %>% select("Study_ID", "Acclimation_Life.History_Stage_Category") %>% table() %>% data.frame() %>% 
                                          filter(`Freq` != 0) %>% select("Acclimation_Life.History_Stage_Category") %>% table() %>% data.frame()
@@ -9525,7 +9385,7 @@ Acclimation_LH_Stage_Category_Final_Counts <- Acclimation_LH_Stage_Category_Stud
                                               left_join(Acclimation_LH_Stage_Category_Species, by = "Acclimation_Life.History_Stage_Category") %>% 
                                               left_join(Acclimation_LH_Stage_Category_Effects, by = "Acclimation_Life.History_Stage_Category")
 
-write.csv(Acclimation_LH_Stage_Category_Final_Counts, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Acclimation_LH_Stage_Category_Final_Counts.csv", row.names = FALSE)
+write.csv(Acclimation_LH_Stage_Category_Final_Counts, file = "./Acclimation_LH_Stage_Category_Final_Counts.csv", row.names = FALSE)
 
 Measurement_Category_Studies <- data %>% select("Study_ID", "Trait_Category") %>% table() %>% data.frame() %>% 
                                 filter(`Freq` != 0) %>% select("Trait_Category") %>% table() %>% data.frame()
@@ -9545,7 +9405,7 @@ Measurement_Category_Final_Counts <- Measurement_Category_Studies %>%
                                      left_join(Measurement_Category_Species, by = "Trait_Category") %>% 
                                      left_join(Measurement_Category_Effects, by = "Trait_Category")
 
-write.csv(Measurement_Category_Final_Counts, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Measurement_Category_Final_Counts.csv", row.names = FALSE)
+write.csv(Measurement_Category_Final_Counts, file = "./Measurement_Category_Final_Counts.csv", row.names = FALSE)
 
 # Phylogenetic Tree with labels
 
@@ -10295,48 +10155,48 @@ Raw_Developmental_Specific_Trait_CVR <- data.frame("Specific Phenotypic Traits" 
                                                                  Developmental_Specific_Trait_Model_CVR$pval[4], Developmental_Specific_Trait_Model_CVR$pval[5], Developmental_Specific_Trait_Model_CVR$pval[6], 
                                                                  Developmental_Specific_Trait_Model_CVR$pval[7], Developmental_Specific_Trait_Model_CVR$pval[8], Developmental_Specific_Trait_Model_CVR$pval[9]))
 
-write.csv(Raw_Overall_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Overall_CVR.csv", row.names = FALSE)
-write.csv(Raw_Amplitude_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Amplitude_CVR.csv", row.names = FALSE)
-write.csv(Raw_Fluctuation_Type_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Fluctuation_Type_CVR.csv", row.names = FALSE)
-write.csv(Raw_Trait_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Trait_CVR.csv", row.names = FALSE)
-write.csv(Raw_Class_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Class_CVR.csv", row.names = FALSE)
-write.csv(Raw_Specific_Trait_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Specific_Trait_CVR.csv", row.names = FALSE)
-write.csv(Raw_Population_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Population_CVR.csv", row.names = FALSE)
-write.csv(Raw_Population_Amplitude_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Population_Amplitude_CVR.csv", row.names = FALSE)
-write.csv(Raw_Population_Fluctuation_Type_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Population_Fluctuation_Type_CVR.csv", row.names = FALSE)
-write.csv(Raw_Population_Class_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Population_Class_CVR.csv", row.names = FALSE)
-write.csv(Raw_Individual_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Individual_CVR.csv", row.names = FALSE)
-write.csv(Raw_Individual_Amplitude_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Individual_Amplitude_CVR.csv", row.names = FALSE)
-write.csv(Raw_Individual_Fluctuation_Type_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Individual_Fluctuation_Type_CVR.csv", row.names = FALSE)
-write.csv(Raw_Individual_Class_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Individual_Class_CVR.csv", row.names = FALSE)
-write.csv(Raw_Aquatic_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Aquatic_CVR.csv", row.names = FALSE)
-write.csv(Raw_Aquatic_Amplitude_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Aquatic_Amplitude_CVR.csv", row.names = FALSE)
-write.csv(Raw_Aquatic_Fluctuation_Type_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Aquatic_Fluctuation_Type_CVR.csv", row.names = FALSE)
-write.csv(Raw_Aquatic_Trait_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Aquatic_Trait_CVR.csv", row.names = FALSE)
-write.csv(Raw_Aquatic_Plasticity_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Aquatic_Plasticity_CVR.csv", row.names = FALSE)
-write.csv(Raw_Aquatic_Specific_Trait_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Aquatic_Specific_Trait_CVR.csv", row.names = FALSE)
-write.csv(Raw_Terrestrial_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Terrestrial_CVR.csv", row.names = FALSE)
-write.csv(Raw_Terrestrial_Amplitude_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Terrestrial_Amplitude_CVR.csv", row.names = FALSE)
-write.csv(Raw_Terrestrial_Fluctuation_Type_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Terrestrial_Fluctuation_Type_CVR.csv", row.names = FALSE)
-write.csv(Raw_Terrestrial_Trait_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Terrestrial_Trait_CVR.csv", row.names = FALSE)
-write.csv(Raw_Terrestrial_Plasticity_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Terrestrial_Plasticity_CVR.csv", row.names = FALSE)
-write.csv(Raw_Terrestrial_Specific_Trait_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Terrestrial_Specific_Trait_CVR.csv", row.names = FALSE)
-write.csv(Raw_Acclimation_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Acclimation_CVR.csv", row.names = FALSE)
-write.csv(Raw_Acclimation_Amplitude_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Acclimation_Amplitude_CVR.csv", row.names = FALSE)
-write.csv(Raw_Acclimation_Exposure_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Acclimation_Exposure_CVR.csv", row.names = FALSE)
-write.csv(Raw_Acclimation_Frequency_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Acclimation_Frequency_CVR.csv", row.names = FALSE)
-write.csv(Raw_Acclimation_Fluctuation_Type_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Acclimation_Fluctuation_Type_CVR.csv", row.names = FALSE)
-write.csv(Raw_Acclimation_Trait_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Acclimation_Trait_CVR.csv", row.names = FALSE)
-write.csv(Raw_Acclimation_Stage_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Acclimation_Stage_CVR.csv", row.names = FALSE)
-write.csv(Raw_Acclimation_Class_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Acclimation_Class_CVR.csv", row.names = FALSE)
-write.csv(Raw_Acclimation_Specific_Trait_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Acclimation_Specific_Trait_CVR.csv", row.names = FALSE)
-write.csv(Raw_Developmental_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Developmental_CVR.csv", row.names = FALSE)
-write.csv(Raw_Developmental_Amplitude_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Developmental_Amplitude_CVR.csv", row.names = FALSE)
-write.csv(Raw_Developmental_Fluctuation_Type_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Developmental_Fluctuation_Type_CVR.csv", row.names = FALSE)
-write.csv(Raw_Developmental_Trait_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Developmental_Trait_CVR.csv", row.names = FALSE)
-write.csv(Raw_Developmental_Exposure_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Developmental_Exposure_CVR.csv", row.names = FALSE)
-write.csv(Raw_Developmental_Class_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Developmental_Class_CVR.csv", row.names = FALSE)
-write.csv(Raw_Developmental_Specific_Trait_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Raw_Developmental_Specific_Trait_CVR.csv", row.names = FALSE)
+write.csv(Raw_Overall_CVR, file = "./Raw_Overall_CVR.csv", row.names = FALSE)
+write.csv(Raw_Amplitude_CVR, file = "./Raw_Amplitude_CVR.csv", row.names = FALSE)
+write.csv(Raw_Fluctuation_Type_CVR, file = "./Raw_Fluctuation_Type_CVR.csv", row.names = FALSE)
+write.csv(Raw_Trait_CVR, file = "./Raw_Trait_CVR.csv", row.names = FALSE)
+write.csv(Raw_Class_CVR, file = "./Raw_Class_CVR.csv", row.names = FALSE)
+write.csv(Raw_Specific_Trait_CVR, file = "./Raw_Specific_Trait_CVR.csv", row.names = FALSE)
+write.csv(Raw_Population_CVR, file = "./Raw_Population_CVR.csv", row.names = FALSE)
+write.csv(Raw_Population_Amplitude_CVR, file = "./Raw_Population_Amplitude_CVR.csv", row.names = FALSE)
+write.csv(Raw_Population_Fluctuation_Type_CVR, file = "./Raw_Population_Fluctuation_Type_CVR.csv", row.names = FALSE)
+write.csv(Raw_Population_Class_CVR, file = "./Raw_Population_Class_CVR.csv", row.names = FALSE)
+write.csv(Raw_Individual_CVR, file = "./Raw_Individual_CVR.csv", row.names = FALSE)
+write.csv(Raw_Individual_Amplitude_CVR, file = "./Raw_Individual_Amplitude_CVR.csv", row.names = FALSE)
+write.csv(Raw_Individual_Fluctuation_Type_CVR, file = "./Raw_Individual_Fluctuation_Type_CVR.csv", row.names = FALSE)
+write.csv(Raw_Individual_Class_CVR, file = "./Raw_Individual_Class_CVR.csv", row.names = FALSE)
+write.csv(Raw_Aquatic_CVR, file = "./Raw_Aquatic_CVR.csv", row.names = FALSE)
+write.csv(Raw_Aquatic_Amplitude_CVR, file = "./Raw_Aquatic_Amplitude_CVR.csv", row.names = FALSE)
+write.csv(Raw_Aquatic_Fluctuation_Type_CVR, file = "./Raw_Aquatic_Fluctuation_Type_CVR.csv", row.names = FALSE)
+write.csv(Raw_Aquatic_Trait_CVR, file = "./Raw_Aquatic_Trait_CVR.csv", row.names = FALSE)
+write.csv(Raw_Aquatic_Plasticity_CVR, file = "./Raw_Aquatic_Plasticity_CVR.csv", row.names = FALSE)
+write.csv(Raw_Aquatic_Specific_Trait_CVR, file = "./Raw_Aquatic_Specific_Trait_CVR.csv", row.names = FALSE)
+write.csv(Raw_Terrestrial_CVR, file = "./Raw_Terrestrial_CVR.csv", row.names = FALSE)
+write.csv(Raw_Terrestrial_Amplitude_CVR, file = "./Raw_Terrestrial_Amplitude_CVR.csv", row.names = FALSE)
+write.csv(Raw_Terrestrial_Fluctuation_Type_CVR, file = "./Raw_Terrestrial_Fluctuation_Type_CVR.csv", row.names = FALSE)
+write.csv(Raw_Terrestrial_Trait_CVR, file = "./Raw_Terrestrial_Trait_CVR.csv", row.names = FALSE)
+write.csv(Raw_Terrestrial_Plasticity_CVR, file = "./Raw_Terrestrial_Plasticity_CVR.csv", row.names = FALSE)
+write.csv(Raw_Terrestrial_Specific_Trait_CVR, file = "./Raw_Terrestrial_Specific_Trait_CVR.csv", row.names = FALSE)
+write.csv(Raw_Acclimation_CVR, file = "./Raw_Acclimation_CVR.csv", row.names = FALSE)
+write.csv(Raw_Acclimation_Amplitude_CVR, file = "./Raw_Acclimation_Amplitude_CVR.csv", row.names = FALSE)
+write.csv(Raw_Acclimation_Exposure_CVR, file = "./Raw_Acclimation_Exposure_CVR.csv", row.names = FALSE)
+write.csv(Raw_Acclimation_Frequency_CVR, file = "./Raw_Acclimation_Frequency_CVR.csv", row.names = FALSE)
+write.csv(Raw_Acclimation_Fluctuation_Type_CVR, file = "./Raw_Acclimation_Fluctuation_Type_CVR.csv", row.names = FALSE)
+write.csv(Raw_Acclimation_Trait_CVR, file = "./Raw_Acclimation_Trait_CVR.csv", row.names = FALSE)
+write.csv(Raw_Acclimation_Stage_CVR, file = "./Raw_Acclimation_Stage_CVR.csv", row.names = FALSE)
+write.csv(Raw_Acclimation_Class_CVR, file = "./Raw_Acclimation_Class_CVR.csv", row.names = FALSE)
+write.csv(Raw_Acclimation_Specific_Trait_CVR, file = "./Raw_Acclimation_Specific_Trait_CVR.csv", row.names = FALSE)
+write.csv(Raw_Developmental_CVR, file = "./Raw_Developmental_CVR.csv", row.names = FALSE)
+write.csv(Raw_Developmental_Amplitude_CVR, file = "./Raw_Developmental_Amplitude_CVR.csv", row.names = FALSE)
+write.csv(Raw_Developmental_Fluctuation_Type_CVR, file = "./Raw_Developmental_Fluctuation_Type_CVR.csv", row.names = FALSE)
+write.csv(Raw_Developmental_Trait_CVR, file = "./Raw_Developmental_Trait_CVR.csv", row.names = FALSE)
+write.csv(Raw_Developmental_Exposure_CVR, file = "./Raw_Developmental_Exposure_CVR.csv", row.names = FALSE)
+write.csv(Raw_Developmental_Class_CVR, file = "./Raw_Developmental_Class_CVR.csv", row.names = FALSE)
+write.csv(Raw_Developmental_Specific_Trait_CVR, file = "./Raw_Developmental_Specific_Trait_CVR.csv", row.names = FALSE)
 
 # Heterogeneity Table
 
@@ -10459,10 +10319,10 @@ Heterogeneity_Developmental_CVR <- data.frame("Models" = c("Developmental", "Exp
                                               "Total" = c(Developmental_Model_CVR_i2[1, 1], Developmental_Exposure_Model_CVR_i2[1, 1], Developmental_Amplitude_Model_CVR_i2[1, 1], Developmental_Fluctuation_Model_CVR_i2[1, 1], 
                                                           Developmental_Trait_Model_CVR_i2[1, 1], Developmental_Specific_Trait_Model_CVR_i2[1, 1], Developmental_Class_Model_CVR_i2[1, 1]))
 
-write.csv(Heterogeneity_Overall_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Heterogeneity_Overall_CVR.csv", row.names = FALSE)
-write.csv(Heterogeneity_Population_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Heterogeneity_Population_CVR.csv", row.names = FALSE)
-write.csv(Heterogeneity_Individual_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Heterogeneity_Individual_CVR.csv", row.names = FALSE)
-write.csv(Heterogeneity_Aquatic_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Heterogeneity_Aquatic_CVR.csv", row.names = FALSE)
-write.csv(Heterogeneity_Terrestrial_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Heterogeneity_Terrestrial_CVR.csv", row.names = FALSE)
-write.csv(Heterogeneity_Acclimation_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Heterogeneity_Acclimation_CVR.csv", row.names = FALSE)
-write.csv(Heterogeneity_Developmental_CVR, file = "./3.Data_Analysis/2.Outputs/Supplementary_Material/Heterogeneity_Developmental_CVR.csv", row.names = FALSE)
+write.csv(Heterogeneity_Overall_CVR, file = "./Heterogeneity_Overall_CVR.csv", row.names = FALSE)
+write.csv(Heterogeneity_Population_CVR, file = "./Heterogeneity_Population_CVR.csv", row.names = FALSE)
+write.csv(Heterogeneity_Individual_CVR, file = "./Heterogeneity_Individual_CVR.csv", row.names = FALSE)
+write.csv(Heterogeneity_Aquatic_CVR, file = "./Heterogeneity_Aquatic_CVR.csv", row.names = FALSE)
+write.csv(Heterogeneity_Terrestrial_CVR, file = "./Heterogeneity_Terrestrial_CVR.csv", row.names = FALSE)
+write.csv(Heterogeneity_Acclimation_CVR, file = "./Heterogeneity_Acclimation_CVR.csv", row.names = FALSE)
+write.csv(Heterogeneity_Developmental_CVR, file = "./Heterogeneity_Developmental_CVR.csv", row.names = FALSE)
