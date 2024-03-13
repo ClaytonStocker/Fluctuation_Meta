@@ -3298,7 +3298,7 @@ Aquatic_Trait_Model_Estimates <- data.frame(Category = substr(row.names(Aquatic_
 rownames(Aquatic_Trait_Model_Estimates) <- Aquatic_Trait_Model_Estimates$Category
 Aquatic_Trait_Model_i2 <- data.frame(round(orchaRd::i2_ml(Aquatic_Trait_Model), 2))
 
-# Preparing Graph
+# Preparing Graph - Combined
 
 aquatic_trait_rnames <- c("Behavioural", "Biochemical Assay", "Gene Expression", "Life-history Traits", 
                           "Morphological", "Physiological")
@@ -3358,7 +3358,7 @@ aquatic_trait_raw_name <- c(replicate(13, "Behavioural"),
 aquatic_trait_raw_df <- data.frame("Model" = aquatic_trait_raw_name, 
                                    "Effect" = aquatic_trait_raw_mean)
 
-# Graph code
+# Graph code - Combined
 
 Aquatic_Trait_Order <- c("Physiological", "Morphological", "Life-history Traits",  
                          "Gene Expression", "Biochemical Assay", "Behavioural")
@@ -3410,7 +3410,7 @@ density_aquatic_trait <- aquatic_trait_table %>% mutate(name = fct_relevel(name,
 
 density_aquatic_trait #(400x560)
 
-# Preparing Graph
+# Preparing Graph - Part 1
 
 aquatic_trait_rnames_1 <- c("Behavioural", "Biochemical Assay", "Gene Expression")
 
@@ -3453,7 +3453,7 @@ aquatic_trait_raw_name_1 <- c(replicate(13, "Behavioural"),
 aquatic_trait_raw_df_1 <- data.frame("Model" = aquatic_trait_raw_name_1, 
                                      "Effect" = aquatic_trait_raw_mean_1)
 
-# Graph code
+# Graph code - Part 1
 
 Aquatic_Trait_Order_1 <- c("Gene Expression", "Biochemical Assay", "Behavioural")
 
@@ -3495,7 +3495,7 @@ density_aquatic_trait_1 <- aquatic_trait_table_1 %>% mutate(name = fct_relevel(n
 
 density_aquatic_trait_1 #(400x320)
 
-# Preparing Graph
+# Preparing Graph - Part 2
 
 aquatic_trait_rnames_2 <- c("Life-history Traits", "Morphological", "Physiological")
 
@@ -3538,7 +3538,7 @@ aquatic_trait_raw_name_2 <- c(replicate(67, "Life-history Traits"),
 aquatic_trait_raw_df_2 <- data.frame("Model" = aquatic_trait_raw_name_2, 
                                      "Effect" = aquatic_trait_raw_mean_2)
 
-# Graph code
+# Graph code - Part 2
 
 Aquatic_Trait_Order_2 <- c("Physiological", "Morphological", "Life-history Traits")
 
@@ -4619,7 +4619,7 @@ Marine_Trait_Model_Estimates <- data.frame(Category = substr(row.names(Marine_Tr
 rownames(Marine_Trait_Model_Estimates) <- Marine_Trait_Model_Estimates$Category
 Marine_Trait_Model_i2 <- data.frame(round(orchaRd::i2_ml(Marine_Trait_Model), 2))
 
-# Preparing Graph
+# Preparing Graph - Combined
 
 Marine_trait_rnames <- c("Biochemical Assay", "Physiological")
 
@@ -4654,7 +4654,7 @@ Marine_trait_raw_name <- c(replicate(25, "Biochemical Assay"),
 Marine_trait_raw_df <- data.frame("Model" = Marine_trait_raw_name, 
                                   "Effect" = Marine_trait_raw_mean)
 
-# Graph code
+# Graph code - Combined
 
 Marine_Trait_Order <- c("Physiological", "Biochemical Assay")
 
@@ -4695,7 +4695,7 @@ density_Marine_trait <- Marine_trait_table %>% mutate(name = fct_relevel(name, M
 
 density_Marine_trait #(400x240)
 
-# Preparing Graph
+# Preparing Graph - Part 1
 
 Marine_trait_rnames_1 <- c("Biochemical Assay")
 
@@ -4726,7 +4726,7 @@ Marine_trait_raw_name_1 <- c(replicate(25, "Biochemical Assay"))
 Marine_trait_raw_df_1 <- data.frame("Model" = Marine_trait_raw_name_1, 
                                     "Effect" = Marine_trait_raw_mean_1)
 
-# Graph code
+# Graph code - Part 1
 
 Marine_Trait_Order_1 <- c("Biochemical Assay")
 
@@ -4764,7 +4764,7 @@ density_Marine_trait_1 <- Marine_trait_table_1 %>% mutate(name = fct_relevel(nam
 
 density_Marine_trait_1 #(400x160)
 
-# Preparing Graph
+# Preparing Graph - Part 2
 
 Marine_trait_rnames_2 <- c("Physiological")
 
@@ -4795,7 +4795,7 @@ Marine_trait_raw_name_2 <- c(replicate(60, "Physiological"))
 Marine_trait_raw_df_2 <- data.frame("Model" = Marine_trait_raw_name_2, 
                                     "Effect" = Marine_trait_raw_mean_2)
 
-# Graph code
+# Graph code - Part 2
 
 Marine_Trait_Order_2 <- c("Physiological")
 
@@ -5594,7 +5594,7 @@ Fresh_Trait_Model_Estimates <- data.frame(Category = substr(row.names(Fresh_Trai
 rownames(Fresh_Trait_Model_Estimates) <- Fresh_Trait_Model_Estimates$Category
 Fresh_Trait_Model_i2 <- data.frame(round(orchaRd::i2_ml(Fresh_Trait_Model), 2))
 
-# Preparing Graph
+# Preparing Graph - Combined
 
 Fresh_trait_rnames <- c("Biochemical Assay", "Gene Expression", "Life-history Traits", 
                         "Morphological", "Physiological")
@@ -5648,7 +5648,7 @@ Fresh_trait_raw_name <- c(replicate(50, "Biochemical Assay"),
 Fresh_trait_raw_df <- data.frame("Model" = Fresh_trait_raw_name, 
                                  "Effect" = Fresh_trait_raw_mean)
 
-# Graph code
+# Graph code - Combined
 
 Fresh_Trait_Order <- c("Physiological", "Morphological", "Life-history Traits",  
                        "Gene Expression", "Biochemical Assay")
@@ -5697,7 +5697,7 @@ density_Fresh_trait <- Fresh_trait_table %>% mutate(name = fct_relevel(name, Fre
 
 density_Fresh_trait #(400x480)
 
-# Preparing Graph
+# Preparing Graph - Part 1
 
 Fresh_trait_rnames_1 <- c("Biochemical Assay", "Gene Expression", "Life-history Traits")
 
@@ -5740,7 +5740,7 @@ Fresh_trait_raw_name_1 <- c(replicate(50, "Biochemical Assay"),
 Fresh_trait_raw_df_1 <- data.frame("Model" = Fresh_trait_raw_name_1, 
                                    "Effect" = Fresh_trait_raw_mean_1)
 
-# Graph code
+# Graph code - Part 1
 
 Fresh_Trait_Order_1 <- c("Life-history Traits", "Gene Expression", "Biochemical Assay")
 
@@ -5782,7 +5782,7 @@ density_Fresh_trait_1 <- Fresh_trait_table_1 %>% mutate(name = fct_relevel(name,
 
 density_Fresh_trait_1 #(400x320)
 
-# Preparing Graph
+# Preparing Graph - Part 2
 
 Fresh_trait_rnames_2 <- c("Morphological", "Physiological")
 
@@ -5819,7 +5819,7 @@ Fresh_trait_raw_name_2 <- c(replicate(90, "Morphological"),
 Fresh_trait_raw_df_2 <- data.frame("Model" = Fresh_trait_raw_name_2, 
                                    "Effect" = Fresh_trait_raw_mean_2)
 
-# Graph code
+# Graph code - Part 2
 
 Fresh_Trait_Order_2 <- c("Physiological", "Morphological")
 
