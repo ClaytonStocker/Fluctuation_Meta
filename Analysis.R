@@ -4636,7 +4636,7 @@ density_aquatic_specific_trait_2 <- aquatic_specific_trait_table_2 %>% mutate(na
 density_aquatic_specific_trait_2
 
 ##### Marine Subset Model #####
-Aquatic_Classification_Data <- read.csv("./3.Data_Analysis/2.Outputs/Data/Aquatic_Classifications.csv")
+Aquatic_Classification_Data <- read.csv("./Aquatic_Classifications.csv")
 Aquatic_Classification_Data$Scientific_Name <- sub(" ", "_", Aquatic_Classification_Data$Scientific_Name)
 
 Marine_Subset_Data <- Individual_Subset_Data %>% left_join(Aquatic_Classification_Data, by = "Scientific_Name")
@@ -8334,7 +8334,7 @@ density_terrestrial_specific_trait_2 <- terrestrial_specific_trait_table_2 %>% m
 density_terrestrial_specific_trait_2
 
 ##### Temperate Subset Model #####
-Temp_Classification_Data <- read.csv("./3.Data_Analysis/2.Outputs/Data/Latitude_Classifications.csv")
+Temp_Classification_Data <- read.csv("./Latitude_Classifications.csv")
 
 Temp_Subset_Data <- Individual_Subset_Data %>% left_join(Temp_Classification_Data, by = c("Study_ID", "Species_ID"))
 Temp_Subset_Data <- Temp_Subset_Data %>% filter(Classification == "Temperate")
