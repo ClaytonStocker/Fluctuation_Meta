@@ -1,15 +1,36 @@
 # Completed in R Version 4.4.0 in RStudio version 2024.04.01
 rm(list = ls())
-if (!require("pacman")) install.packages("pacman")
-if (!require("devtools")) install.packages("devtools")
-if (!require("metaAidR")) devtools::install_github("daniel1noble/metaAidR", force = TRUE)
-if (!require("orchaRd")) devtools::install_github("daniel1noble/orchaRd", force = TRUE)
-pacman::p_load(tidyverse, readxl, gtsummary, dplyr, 
-               tidyr, ggplot2, rotl, DescTools, stringr, ape, 
-               emmeans, patchwork, latex2exp, metafor, brms, 
-               flextable, phytools, MCMCglmm, metaAidR, orchaRd, 
-               robumeta, ggpmisc, ggridges, ggbeeswarm, gridExtra, 
-               clubSandwich, ggtext)
+if (!require("pacman")) install.packages("pacman") # Version 0.5.1
+if (!require("devtools")) install.packages("devtools") # Version 2.4.5
+if (!require("metaAidR")) devtools::install_github("daniel1noble/metaAidR", force = TRUE) # Version 0.0.0.9000
+if (!require("orchaRd")) devtools::install_github("daniel1noble/orchaRd", force = TRUE) # Version 2.0
+pacman::p_load(tidyverse, # Version 2.0.0
+               readxl, # Version 1.4.3
+               gtsummary, # Version 1.7.2
+               dplyr, # Version 1.1.4
+               tidyr, # Version 1.3.1
+               ggplot2, # Version 3.5.1
+               rotl, # Version 3.1.0
+               DescTools, # Version 0.99.54
+               stringr, # Version 1.5.1
+               ape, # Version 5.8
+               emmeans, # Version 1.10.2
+               patchwork, # Version 1.2.0
+               latex2exp, # Version 0.9.6
+               metafor, # Version 4.6-3
+               brms, # Version 2.21.0
+               flextable, # Version 0.9.6
+               phytools, # Version 2.1-1
+               MCMCglmm, # Version 2.36
+               metaAidR, # Version 0.0.0.9000
+               orchaRd, # Version 2.0
+               robumeta, # Version 2.1
+               ggpmisc, # Version 0.5.6
+               ggridges, # Version 0.5.6
+               ggbeeswarm, # Version 0.7.2
+               gridExtra, # Version 2.3
+               clubSandwich, # Version 0.5.10
+               ggtext) # Version 0.1.2
 
 # Importing Data Set
 data <- read.csv("./Final_Data.csv")
