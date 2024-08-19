@@ -1,3 +1,4 @@
+# Completed in R Version 4.4.0 in RStudio Version 2024.04.01
 rm(list = ls())
 if (!require("pacman")) install.packages("pacman")
 if (!require("devtools")) install.packages("devtools")
@@ -17,7 +18,7 @@ data$Scientific_Name <- sub(" ", "_", data$Scientific_Name)
 data$phylo <- data$Scientific_Name
 
 # Phylogenetic covariance matrix
-tree <- ape::read.tree("./Phylogeny/tree")
+tree <- ape::read.tree("./tree")
 phy <- ape::compute.brlen(tree, method = "Grafen", power = 1)
 A <- ape::vcv.phylo(phy)
 row.names(A) <- colnames(A) <- row.names(A)
