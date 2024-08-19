@@ -1,3 +1,4 @@
+# Completed in R Version 4.4.0 in RStudio version 2024.04.01
 rm(list = ls())
 if (!require("pacman")) install.packages("pacman")
 if (!require("devtools")) install.packages("devtools")
